@@ -1,0 +1,40 @@
+GWAStoolkit/
+│
+├── Makefile
+│
+├── src/
+│   ├── main.cpp                          <-- 总入口：调度子命令
+│   │
+│   ├── cmds/                             <-- 每个子指令一个文件
+│   │   ├── cmd_rsidImpu.cpp
+│   │   ├── cmd_convert.cpp
+│   │   └── cmd_or2beta.cpp
+│   │
+│   ├── rsidImpu/                         <-- rsidImpu 专属模块
+│   │   ├── gwas.cpp
+│   │   ├── gwas.hpp                      (新增头文件供 include)
+│   │   ├── dbsnp.cpp
+│   │   ├── dbsnp.hpp
+│   │   ├── gwasQC.cpp
+│   │   ├── gwasQC.hpp
+│   │   ├── allele.cpp
+│   │   └── allele.hpp
+│   │
+│   ├── formats/                          <-- 统一格式模块
+│   │   ├── FormatEngine.hpp
+│   │   └── FormatEngine.cpp
+│   │
+│   ├── utils/                            <-- 工具模块（所有子命令共用）
+│       ├── args.cpp
+│       ├── args.hpp
+│       ├── linereader.cpp
+│       ├── linereader.hpp
+│       ├── writer.cpp
+│       ├── writer.hpp
+│       ├── util.cpp
+│       ├── util.hpp
+│       ├── log.cpp
+│       ├── log.hpp
+│       └── gadgets.cpp
+│
+└── README.md

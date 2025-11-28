@@ -1,0 +1,132 @@
+#include "convert/convert.hpp"
+
+#include "utils/linereader.hpp"
+#include "utils/writer.hpp"
+#include "utils/util.hpp"
+#include "utils/log.hpp"
+#include "utils/gwasQC.hpp"
+#include "utils/FormatEngine.hpp"
+
+#include <unordered_map>
+#include <string>
+#include <deque>
+#include <algorithm>
+
+using namespace std;
+
+void run_convert(const Args_Convert& P){
+    LOG_INFO("Running convert ...");
+
+    LineReader lr(P.gwas_file);
+    string line;
+
+    // read header
+    if (!lr.getline(line)){
+        LOG_ERROR("Empty GWAS summary file in convert.");
+        exit(1);
+    }
+    line.erase(remove(line.begin(), line.end(), '\r'), line.end());
+    auto header = split(line);
+
+    // read content
+    deque<string> lines;
+    while (lr.getline(line)) {
+        if (!line.empty())
+            lines.push_back(line);
+    }
+    size_t n = lines.size();
+    LOG_INFO("Loaded GWAS lines for convert: " + to_string(n));
+
+    // QC, default maf = 0.01
+    vector<bool> keep_qc(n, true);
+
+    int idx_beta = find_col(header, P.col_beta);
+    int idx_se   = find_col(header, P.col_se);
+    int idx_freq = find_col(header, P.col_freq);
+    int idx_p    = find_col(header, P.g_p);
+    int idx_n    = find_col(header, P.col_n);
+
+    // 如果列都存在，就执行QC，否则给warning
+    bool can_qc = (idx_beta>=0 && idx_se>=0 && idx_freq>=0 && idx_p>=0 && idx_n>=0);
+    if (can_qc) {
+        gwas_basic_qc(lines, header,
+                    idx_beta, idx_se, idx_freq, idx_p, idx_n,
+                    keep_qc, P.maf_threshold);
+    } else {
+        LOG_WARN("Cannot perform full QC in convert (missing beta/se/freq/N/P columns).");
+    }
+
+    // out format
+    FormatEngine FE;
+    FormatSpec spec = FE.get_format(P.format);
+
+    Writer fout(P.out_file, P.format);
+    if (!fout.good()){
+        LOG_ERROR("Cannot open output file: " + P.out_file);
+        exit(1);
+    }
+
+    // writer header
+    if (P.format == "gwas") {
+        // raw header
+        string h;
+        for (size_t i=0; i<header.size(); i++){
+            if (i) h += "\t";
+            h += header[i];
+        }
+        fout.write_line(h);
+    } else {
+        string h;
+        for (size_t i=0; i<spec.cols.size(); i++){
+            if (i) h += "\t";
+            h += spec.cols[i];
+        }
+        fout.write_line(h);
+    }
+
+    // write context
+    int idx_snp = find_col(header, P.col_SNP);
+    int idx_A1  = find_col(header, P.g_A1);
+    int idx_A2  = find_col(header, P.g_A2);
+
+    for (size_t i=0; i<n; i++){
+        if (!keep_qc[i]) continue;
+
+        lines[i].erase(remove(lines[i].begin(), lines[i].end(), '\r'), lines[i].end());
+        auto f = split(lines[i]);
+
+        if (P.format == "gwas"){
+            fout.write_line(lines[i]);
+            continue;
+        }
+
+        unordered_map<string,string> row;
+
+        // 按 spec 需要的列填值（cojo / smr 等）
+        for (auto &col : spec.cols) {
+            if (col == "SNP" && idx_snp>=0)
+                row[col] = f[idx_snp];
+            else if (col == "A1" && idx_A1>=0)
+                row[col] = f[idx_A1];
+            else if (col == "A2" && idx_A2>=0)
+                row[col] = f[idx_A2];
+            else if ((col == "freq" || col == "Freq") && idx_freq>=0)
+                row[col] = f[idx_freq];
+            else if ((col == "beta" || col == "b") && idx_beta>=0)
+                row[col] = f[idx_beta];
+            else if (col == "se" && idx_se>=0)
+                row[col] = f[idx_se];
+            else if ((col == "p" || col == "P") && idx_p>=0)
+                row[col] = f[idx_p];
+            else if (col == "N" && idx_n>=0)
+                row[col] = f[idx_n];
+            else
+                row[col] = "";
+        }
+
+        string out_line = FE.format_line(spec, row);
+        fout.write_line(out_line);
+    }
+
+    LOG_INFO("convert finished (format=" + P.format + ").");
+}
