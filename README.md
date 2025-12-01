@@ -4,8 +4,8 @@
 GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool. \
 It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets (dbSNP > 15GB, millions of SNPs). \
 
-### Features
-##### 1️⃣ rsidImpu — Fast rsID annotation using dbSNP
+## Features
+### 1️⃣ rsidImpu — Fast rsID annotation using dbSNP
 
 - Supports TSV / CSV / gzipped input
 - Allele-aware matching with:
@@ -16,7 +16,7 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 - Automatic QC: MAF, beta, se, p, freq, N
 - Remove duplicate SNPs by smallest P-value
 
-##### 2️⃣ convert — Convert between GWAS formats
+### 2️⃣ convert — Convert between GWAS formats
 
 Convert any GWAS summary file to formats required by:
 - **GWAS standard**
@@ -24,13 +24,13 @@ Convert any GWAS summary file to formats required by:
 - **POPCORN**
 - **MR-MEGA**
 
-##### 3️⃣ or2beta — Convert OR → beta + SE
+### 3️⃣ or2beta — Convert OR → beta + SE
 
 - Converts OR to log-odds beta
 - Computes SE from OR, or from P-value if needed
 - Full QC support
 
-##### 4️⃣ computeNeff — Compute effective sample size (binary traits)
+### 4️⃣ computeNeff — Compute effective sample size (binary traits)
 
 Used for case/control GWAS.
 - Full QC support
@@ -46,12 +46,11 @@ z   = beta / se
 se  = 1 / sqrt(2 * p * (1 - p) * (Neff + z^2))
 beta= z * se
 ```
-### ⚙️ Installation
-##### Dependencies
+## ⚙️ Installation
+## Dependencies
 - g++ (support C++11)
 - zlib
-
-##### Build
+### Build
 ```
 git clone https://github.com/Crazzy-Rabbit/GWAStoolkit.git
 cd GWAStoolkit
@@ -61,12 +60,12 @@ You will get:
 ```
 ./GWAStoolkit
 ```
-### 🚀 Quick Start
-##### List all commands
+## 🚀 Quick Start
+### List all commands
 ```
 GWAStoolkit --help
 ```
-##### 🔧 1. rsidImpu Example
+### 🔧 1. rsidImpu Example
 
 Basic:
 ```
@@ -82,7 +81,7 @@ With specific output format:
 --format cojo \
 --freq Freq --beta Beta --se SE --n N --pval P
 ```
-##### 🔧 2. convert Example
+### 🔧 2. convert Example
 ```
 GWAStoolkit convert \
   --gwas-summary gwas.txt \
@@ -91,7 +90,7 @@ GWAStoolkit convert \
   --SNP SNP --A1 A1 --A2 A2 --pval P \
   --freq FRQ --beta BETA --se SE --n N
 ```
-##### 🔧 3. or2beta Example
+### 🔧 3. or2beta Example
 ```
 GWAStoolkit or2beta \
   --gwas-summary gwas.txt \
@@ -99,7 +98,7 @@ GWAStoolkit or2beta \
   --or OR \
   --SNP SNP --A1 A1 --A2 A2 --pval P
 ```
-##### 🔧 4. computeNeff Example
+### 🔧 4. computeNeff Example
 
 Mode 1 — global case/control:
 ```
@@ -117,7 +116,7 @@ GWAStoolkit computeNeff \
   --case-col CASE \
   --control-col CTRL
   ```
-### 📦 Unified Argument System
+## 📦 Unified Argument System
 
 All subcommands share:
 | Parameter        | Description                                  | Default          |
@@ -141,7 +140,7 @@ Additional command-specific parameters:
 | or2beta      | `--SNP --or`                                     |
 | computeNeff  | `(--case & --control) or (--case-col & --control-col)` |
 
-### 🧪 Example Output (COJO Format `--format cojo`)
+## 🧪 Example Output (COJO Format `--format cojo`)
 
 ```
 SNP       A1  A2  freq   b    se      p       N
