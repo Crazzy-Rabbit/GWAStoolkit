@@ -2,7 +2,7 @@
 **A unified, high-performance C++ toolkit for processing GWAS summary statistics.**
 
 GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool. \
-It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets (dbSNP > 15GB, millions of SNPs). \
+It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets (dbSNP > 15GB, millions of SNPs). 
 
 ## Features
 ### 1️⃣ rsidImpu — Fast rsID annotation using dbSNP
