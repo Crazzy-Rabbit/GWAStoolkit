@@ -47,7 +47,7 @@ se  = 1 / sqrt(2 * p * (1 - p) * (Neff + z^2))
 beta= z * se
 ```
 ## ⚙️ Installation
-## Dependencies
+### Dependencies
 - g++ (support C++11)
 - zlib
 ### Build
