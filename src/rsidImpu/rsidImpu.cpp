@@ -11,7 +11,7 @@
 #include "utils/util.hpp"
 #include "utils/gwasQC.hpp" // basic QC
 #include "utils/FormatEngine.hpp"
-#include "rsidImpu/gwas.hpp"
+#include "rsidImpu/rsidImpu.hpp"
 #include "rsidImpu/allele.hpp"
 #include "rsidImpu/dbsnp.hpp"
 
@@ -21,22 +21,11 @@
 #include <algorithm>
 #include <deque>
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 using namespace std;
 
-void process_gwas(const Args_RsidImpu& P,
+void process_rsidImpu(const Args_RsidImpu& P,
                     const DBMap& mapdb)
 {
-    // threads
-    #ifdef _OPENMP
-    if (P.threads > 0) {
-        omp_set_num_threads(P.threads);
-        LOG_INFO("Using threads = " + std::to_string(P.threads));
-    }
-    #endif
 
     deque<string> gwas_lines;
     string line;
@@ -63,38 +52,6 @@ void process_gwas(const Args_RsidImpu& P,
         exit(1);
     }
 
-    // format = cojo
-    int colFreq = -1, colBeta = -1, colSe = -1, colN = -1;
-    bool is_cojo = (P.format == "cojo");
-
-    if (is_cojo){
-        colFreq = find_col(header, P.col_freq);
-        colBeta = find_col(header, P.col_beta);
-        colSe   = find_col(header, P.col_se);
-        colN    = find_col(header, P.col_n);
-
-        if (colFreq<0 || colBeta<0 || colSe<0 || colN<0) {
-            LOG_ERROR("Error: COJO format requires freq, beta, se, n columns.");
-            exit(1);
-        }
-    }
-
-    // format = smr
-    // int colFreq = -1, colBeta = -1, colSe = -1, colN = -1;
-    // bool is_smr = (P.format == "smr");
-
-    // if (is_smr){
-    //     colFreq = find_col(header, P.col_freq);
-    //     colBeta = find_col(header, P.col_beta);
-    //     colSe   = find_col(header, P.col_se);
-    //     colN    = find_col(header, P.col_n);
-
-    //     if (colFreq<0 || colBeta<0 || colSe<0 || colN<0) {
-            // LOG_ERROR("Error: SMR format requires freq, beta, se, n columns.");
-            // exit(1);
-    //     }
-    // }
-    
     //================ 2. 读入 GWAS 数据行 =================
     while (reader.getline(line)){
         if (line.empty()) continue;
@@ -125,9 +82,6 @@ void process_gwas(const Args_RsidImpu& P,
     }
 
     //================ 3. 匹配 dbSNP，确定哪些行有 rsid =================
-#ifdef _OPENMP
-    #pragma omp parallel for
-#endif
     for (long i=0; i<(long)n; i++){
         auto f = split(gwas_lines[i]);
         
@@ -235,12 +189,12 @@ void process_gwas(const Args_RsidImpu& P,
         row["SNP"]  = rsid_vec[i];
         row["A1"]   = f[gA1];
         row["A2"]   = f[gA2];
-        row["freq"] = f[colFreq];
-        row["beta"] = f[colBeta];
-        row["se"]   = f[colSe];
-        row["p"]    = f[gP];
-        row["P"]    = f[gP];
-        row["N"]    = f[colN];   
+
+        if (idx_freq >= 0) row["freq"] = f[idx_freq];
+        if (idx_beta >= 0) row["beta"] = f[idx_beta];
+        if (idx_se   >= 0) row["se"]   = f[idx_se];
+        if (idx_pv   >= 0) row["p"]    = f[idx_pv];
+        if (idx_n    >= 0) row["N"]    = f[idx_n];
 
         fout.write_line(FE.format_line(spec, row));
     }

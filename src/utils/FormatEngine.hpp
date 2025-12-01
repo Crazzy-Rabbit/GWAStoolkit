@@ -4,15 +4,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-
-enum class GWASFormat {
-    GWAS,
-    COJO,
-    SMR,
-    LDSC,
-    Popcorn,
-    MR_MEGA
-};
+#include <map>
 
 struct FormatSpec {
     std::string name;
@@ -28,12 +20,22 @@ struct FormatSpec {
 class FormatEngine {
 public:
     FormatEngine();
+    // 获取指定格式
     FormatSpec get_format(const std::string& name) const;
-    std::string format_line(const FormatSpec& spec,
-                            const std::unordered_map<std::string,std::string>& row) const;
+    // 映射输出
+    std::string format_line(
+        const FormatSpec& spec,
+        const std::unordered_map<std::string,std::string>& row
+    ) const;
 
 private:
-    std::unordered_map<std::string,FormatSpec> formats;
+    std::map<std::string,FormatSpec> formats;
+
+    // 核心：将各种格式的列名映射到内部 key
+    // "b" → "beta"     "BETA" → "beta"
+    // "FREQ" → "freq"  "SE" → "se"
+    std::string normalize_key(const std::string& col) const;
+    static std::string to_lower(std::string s);
 };
 
 #endif

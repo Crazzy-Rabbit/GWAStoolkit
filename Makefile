@@ -2,39 +2,34 @@
 # GWAStoolkit - Makefile
 #########################################
 
-# Compiler
 CXX = g++
-
-# Flags
-
 CXXFLAGS = -std=c++11 -O3 -fopenmp -Isrc -DUSE_RMATH
-LDFLAGS  = -lz -lRmath -lm
+LDFLAGS  = -lz -lm
 
-# All source files in current directory
+SRC = \
+    src/main.cpp \
+    src/cmds/cmd_rsidImpu.cpp \
+    src/cmds/cmd_convert.cpp \
+    src/cmds/cmd_or2beta.cpp \
+    src/cmds/cmd_computeNeff.cpp \
+    src/rsidImpu/dbsnp.cpp \
+    src/rsidImpu/rsidImpu.cpp \
+    src/rsidImpu/allele.cpp \
+    src/convert/convert.cpp \
+    src/or2beta/or2beta.cpp \
+    src/computeNeff/computeNeff.cpp \
+    src/utils/args.cpp \
+    src/utils/FormatEngine.cpp \
+    src/utils/gadgets.cpp \
+    src/utils/gwasQC.cpp \
+    src/utils/linereader.cpp \
+    src/utils/log.cpp \
+    src/utils/util.cpp \
+    src/utils/writer.cpp \
+    src/utils/StatFunc.cpp
 
-SRC = main.cpp \
-        cmds/cmd_rsidImpu.cpp \
-        cmds/cmd_convert.cpp \
-        cmds/cmd_or2beta.cpp \
-        rsidImpu/dbsnp.cpp \
-        rsidImpu/gwas.cpp \
-        rsidImpu/allele.cpp \
-        convert/convert.cpp \
-        or2beta/or2beta.cpp \
-        utils/args.cpp \
-        utils/FormatEngine.cpp \
-        utils/gadgets.cpp \
-        utils/gwasQC.cpp \
-        utils/linereader.cpp \
-        utils/log.cpp \
-        utils/util.cpp \
-        utils/writer.cpp
-
-# Convert .cpp → .o
 OBJ = $(SRC:.cpp=.o)
-
-# Output binary
-TARGET = rsidImpu
+TARGET = GWAStoolkit
 
 #########################################
 all: $(TARGET)

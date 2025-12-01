@@ -60,13 +60,26 @@ struct Args_Or2Beta : public CommonArgs {
     std::string col_or = "OR";
 };
 
+struct Args_CalNeff : public CommonArgs {
+    bool is_single = false;
+    bool is_column = false;
+
+    int case_n = 0;
+    int control_n = 0;
+
+    std::string case_col;
+    std::string control_col;
+};
+
 // ----------------------【解析器接口】-------------------------
 void print_rsidimpu_help();
 void print_convert_help();
 void print_or2beta_help();
+void print_calneff_help();
 
 Args_RsidImpu  parse_args_rsidimpu(int argc, char* argv[]);
 Args_Convert   parse_args_convert(int argc, char* argv[]);
 Args_Or2Beta   parse_args_or2beta(int argc, char* argv[]);
+Args_CalNeff  parse_args_calneff(int argc, char* argv[]);
 
 #endif

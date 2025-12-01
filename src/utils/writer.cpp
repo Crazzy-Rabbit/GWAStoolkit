@@ -11,28 +11,31 @@
 
 #include <iostream>
 
-Writer::Writer(const std::string &filename, const std::string &format)
-    : use_gz_(false), ok_(false), gzfp_(nullptr), format_(format)
+Writer::Writer(const std::string &filename, const std::string & /*format*/)
 {
-    // 判断是否以 .gz 结尾
+    // 判断是否 .gz 结尾
     if (ends_with(filename, ".gz")) {
         use_gz_ = true;
         gzfp_ = gzopen(filename.c_str(), "wb");
         if (!gzfp_) {
             LOG_ERROR("Error: cannot open gzip file for writing: " + filename);
-            exit (1);
+            ok_ = false;
+            return;
         }
     } else {
         ofs_.open(filename);
         if (!ofs_) {
             LOG_ERROR("Error: cannot open text file for writing: " + filename);
-            exit(1);
+            ok_ = false;
+            return;
         }
     }
+
     ok_ = true;
 }
 
-Writer::~Writer() {
+Writer::~Writer()
+{
     if (use_gz_) {
         if (gzfp_) gzclose(gzfp_);
     } else {
@@ -40,7 +43,8 @@ Writer::~Writer() {
     }
 }
 
-void Writer::write_line(const std::string &line) {
+void Writer::write_line(const std::string &line)
+{
     if (!ok_) return;
 
     if (use_gz_) {
@@ -48,10 +52,4 @@ void Writer::write_line(const std::string &line) {
     } else {
         ofs_ << line << '\n';
     }
-}
-
-void Writer::write_cojo_header(){
-    if (format_ == "cojo") {
-        write_line("SNP\tA1\tA2\tfreq\tb\tse\tp\tN");
-    } 
 }

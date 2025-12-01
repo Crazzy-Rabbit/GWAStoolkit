@@ -15,8 +15,6 @@
 using namespace std;
 
 void run_convert(const Args_Convert& P){
-    LOG_INFO("Running convert ...");
-
     LineReader lr(P.gwas_file);
     string line;
 
@@ -103,26 +101,14 @@ void run_convert(const Args_Convert& P){
         unordered_map<string,string> row;
 
         // 按 spec 需要的列填值（cojo / smr 等）
-        for (auto &col : spec.cols) {
-            if (col == "SNP" && idx_snp>=0)
-                row[col] = f[idx_snp];
-            else if (col == "A1" && idx_A1>=0)
-                row[col] = f[idx_A1];
-            else if (col == "A2" && idx_A2>=0)
-                row[col] = f[idx_A2];
-            else if ((col == "freq" || col == "Freq") && idx_freq>=0)
-                row[col] = f[idx_freq];
-            else if ((col == "beta" || col == "b") && idx_beta>=0)
-                row[col] = f[idx_beta];
-            else if (col == "se" && idx_se>=0)
-                row[col] = f[idx_se];
-            else if ((col == "p" || col == "P") && idx_p>=0)
-                row[col] = f[idx_p];
-            else if (col == "N" && idx_n>=0)
-                row[col] = f[idx_n];
-            else
-                row[col] = "";
-        }
+        row["SNP"]  = f[idx_snp];
+        row["A1"]   = f[idx_A1]; 
+        row["A2"]   = f[idx_A2];
+        row["freq"] = f[idx_freq];
+        row["beta"] = f[idx_beta];
+        row["se"]   = f[idx_se];
+        row["p"]    = f[idx_p];
+        row["N"]    = f[idx_n];
 
         string out_line = FE.format_line(spec, row);
         fout.write_line(out_line);

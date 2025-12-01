@@ -6,6 +6,7 @@
 #include "utils/log.hpp"
 #include "utils/gwasQC.hpp"
 #include "utils/FormatEngine.hpp"
+#include "utils/StatFunc.hpp"
 
 #include <algorithm>
 #include <unordered_map>
@@ -13,21 +14,7 @@
 
 using namespace std;
 
-// --------- P 值 → Z 值（gsMap 方法）------------
-static double p_to_z(double p);
-
-#ifdef USE_RMATH
-    #include <Rmath.h>
-    static double p_to_z(double p){
-        if (p <= 0) return 38.0;
-        if (p >= 1) return 0.0;
-        return fabs(qnorm(p/2.0, 0.0, 1.0, 1, 0));
-    }
-#endif
-
 void run_or2beta(const Args_Or2Beta& P){
-    LOG_INFO("Running or2beta ...");
-
     LineReader lr(P.gwas_file);
     string line;
 
@@ -116,7 +103,7 @@ void run_or2beta(const Args_Or2Beta& P){
         double se   = NAN;
         if (idx_p >= 0){
             double pval = stod(f[idx_p]);
-            double z = p_to_z(pval);
+            double z    = StatFunc::p2z_two_tailed(pval);
             se = (z > 0 ? fabs(beta) / z : 999);
         } else {
             se = 999;
@@ -125,18 +112,14 @@ void run_or2beta(const Args_Or2Beta& P){
         // construct row for FormatEngine
         unordered_map<string,string> row;
 
-        for (auto &col : spec.cols) {
-
-            if (col == "SNP"   && idx_snp>=0) row[col] = f[idx_snp];
-            else if (col == "A1" && idx_A1>=0) row[col] = f[idx_A1];
-            else if (col == "A2" && idx_A2>=0) row[col] = f[idx_A2];
-            else if (col == "beta") row[col] = to_string(beta);
-            else if (col == "se")   row[col] = to_string(se);
-            else if (col == "p" && idx_p>=0) row[col] = f[idx_p];
-            else if (col == "P" && idx_p>=0) row[col] = f[idx_p];
-            else
-                row[col] = "";   // not available
-        }
+        row["SNP"]  = f[idx_snp];
+        row["A1"]   = f[idx_A1];
+        row["A2"]   = f[idx_A2];
+        row["freq"] = f[idx_freq];
+        row["beta"] = to_string(beta);
+        row["se"]   = to_string(se);
+        row["p"]    = (idx_p>=0 ? f[idx_p] : "");
+        row["N"]    = (idx_n>=0 ? f[idx_n] : "");
 
         fout.write_line(FE.format_line(spec, row));
     }

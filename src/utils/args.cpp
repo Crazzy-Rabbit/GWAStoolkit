@@ -29,12 +29,17 @@ static const set<string> common_params = {
     "--maf", "--remove-dup-snp",
     "--threads", "--log"
 };
+
 static const std::set<std::string> rsidimpu_params = {
     "--dbsnp", "--dbchr", "--dbpos", "--dbA1", "--dbA2", "--dbrsid"
 };
 static const std::set<std::string> convert_params = {};
 static const std::set<std::string> or2beta_params = {
     "--or"
+};
+static const set<string> calneff_params = {
+    "--case", "--control",       // fixed-mode
+    "--case-col", "--control-col" // per-SNP mode
 };
 
 // =============== 通用错误检查 ===================
@@ -56,7 +61,7 @@ static void check_format(const string& fmt){
 // ------------------------- 公共解析  ---------------------
 static void parse_common(CommonArgs& C, map<string,string>& args) {
     require(args.count("--gwas-summary"), "Missing required: --gwas-summary");
-    require(args.count("--out"), "Missing required: --out");
+    require(args.count("--out"),          "Missing required: --out");
 
     C.gwas_file = args["--gwas-summary"];
     C.out_file  = args["--out"];
@@ -99,52 +104,73 @@ static void parse_common(CommonArgs& C, map<string,string>& args) {
 // ======================================================
 void print_rsidimpu_help() {
     cerr <<
-    "Usage: GWAStoolkit rsidImpu [options]\n\n"
-    "Required:\n"
-    "  --gwas-summary FILE        Input GWAS summary statistics\n"
-    "  --dbsnp FILE               dbSNP or BIM file\n"
-    "  --out FILE                 Output file\n"
-    "  --dbchr COL --dbpos COL --dbA1 COL --dbA2 COL --dbrsid COL\n\n"
+    "Usage:\n"
+    "  GWAStoolkit rsidImpu [options]\n\n"
+
+    "Description:\n"
+    "  Annotate GWAS summary statistics with dbSNP rsID.\n"
+    "  Allele matching supports flips and strand complements.\n\n"
+
+    "Required arguments:\n"
+    "  --gwas-summary FILE        Input GWAS summary statistics (txt / tsv / gz)\n"
+    "  --dbsnp FILE               dbSNP or PLINK .bim file (txt / gz)\n"
+    "  --out FILE                 Output file (txt or .gz)\n"
+    "  --dbchr COL --dbpos COL --dbA1 COL --dbA2 COL --dbrsid COL\n"
+    "                             Column names in dbSNP file\n\n"
+
     "Required GWAS columns:\n"
-    "  --chr COL   (default: CHR)\n"
-    "  --pos COL   (default: POS)\n"
-    "  --A1  COL   (default: A1)\n"
-    "  --A2  COL   (default: A2)\n\n"
-    "Optional format:\n"
-    "  --format gwas|cojo|popcorn|mrmega   Output format (default: gwas)\n\n"
-    "Optional columns:\n"
-    "  --pval COL   (default: p)\n"
-    "  --freq COL   (default: freq)\n"
-    "  --beta COL   (default: b)\n"
-    "  --se   COL   (default: se)\n"
-    "  --n    COL   (default: N)\n\n"
-    "QC options:\n"
-    "  --maf VAL              MAF threshold (default: 0.01)\n"
-    "  --remove-dup-snp       Keep smallest-P SNP when duplicates exist\n\n"
+    "  --chr  COL   Chromosome column      (default: CHR)\n"
+    "  --pos  COL   Base position column   (default: POS)\n"
+    "  --A1   COL   Effect allele          (default: A1)\n"
+    "  --A2   COL   Other allele           (default: A2)\n\n"
+
+    "Optional output format:\n"
+    "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
+
+    "Optional GWAS columns (required depending on --format):\n"
+    "  --pval COL   P-value column         (default: p)\n"
+    "  --freq COL   Allele frequency       (default: freq)\n"
+    "  --beta COL   Effect size            (default: b)\n"
+    "  --se   COL   Standard error         (default: se)\n"
+    "  --n    COL   Sample size            (default: N)\n\n"
+
+    "Quality Control options:\n"
+    "  --maf VAL            MAF threshold (default: 0.01)\n"
+    "  --remove-dup-snp     Keep only lowest-P SNP if duplicates exist\n\n"
+
     "Other options:\n"
-    "  --threads N\n"
-    "  --log FILE\n";
+    "  --threads N          Number of threads (default: 1)\n"
+    "  --log FILE           Write log output to FILE\n";
 }
 
 void print_convert_help() {
     cerr <<
-    "Usage: GWAStoolkit convert [options]\n\n"
-    "Required:\n"
-    "  --gwas-summary FILE\n"
-    "  --out FILE\n"
+    "Usage:\n"
+    "  GWAStoolkit convert [options]\n\n"
+
+    "Description:\n"
+    "  Convert GWAS summary statistics into specific downstream formats.\n"
+    "  Supported: gwas, cojo, popcorn, mrmega.\n\n"
+
+    "Required arguments:\n"
+    "  --gwas-summary FILE     Input GWAS summary statistics (txt / gz)\n"
+    "  --out FILE              Output file (txt or .gz)\n"
     "  --format gwas|cojo|popcorn|mrmega\n"
-    "  --SNP COL        SNP identifier column\n\n"
+    "  --SNP COL               SNP identifier column\n\n"
+
     "Required GWAS columns for conversion:\n"
-    "  --A1 COL   (default: A1)\n"
-    "  --A2 COL   (default: A2)\n"
-    "  --pval COL (default: p)\n"
-    "  --freq COL (default: freq)\n"
-    "  --beta COL (default: b)\n"
-    "  --se   COL (default: se)\n"
-    "  --n    COL (default: N)\n\n"
-    "QC options:\n"
-    "  --maf VAL\n"
-    "  --remove-dup-snp\n\n"
+    "  --A1   COL   Effect allele        (default: A1)\n"
+    "  --A2   COL   Other allele         (default: A2)\n"
+    "  --pval COL   P-value              (default: p)\n"
+    "  --freq COL   Allele frequency     (default: freq)\n"
+    "  --beta COL   Beta                 (default: b)\n"
+    "  --se   COL   Standard error       (default: se)\n"
+    "  --n    COL   Sample size          (default: N)\n\n"
+
+    "Quality Control options:\n"
+    "  --maf VAL            MAF threshold (default: 0.01)\n"
+    "  --remove-dup-snp     Keep only lowest-P SNP if duplicates exist\n\n"
+
     "Other options:\n"
     "  --threads N\n"
     "  --log FILE\n";
@@ -152,24 +178,61 @@ void print_convert_help() {
 
 void print_or2beta_help() {
     cerr <<
-    "Usage: GWAStoolkit or2beta [options]\n\n"
-    "Required:\n"
-    "  --gwas-summary FILE\n"
-    "  --out FILE\n"
-    "  --or COL        OR column name\n"
-    "  --SNP COL       SNP identifier column\n\n"
+    "Usage:\n"
+    "  GWAStoolkit or2beta [options]\n\n"
+
+    "Description:\n"
+    "  Convert Odds Ratio (OR) to Beta and SE.\n"
+    "  If SE missing, SE is inferred from p-value.\n\n"
+
+    "Required arguments:\n"
+    "  --gwas-summary FILE    Input GWAS summary statistics (txt / gz)\n"
+    "  --out FILE             Output file (txt or .gz)\n"
+    "  --or COL               Column containing OR values\n"
+    "  --SNP COL              SNP ID column\n\n"
+
     "Required allele columns:\n"
-    "  --A1 COL   (default: A1)\n"
-    "  --A2 COL   (default: A2)\n\n"
-    "Optional columns:\n"
+    "  --A1 COL    (default: A1)\n"
+    "  --A2 COL    (default: A2)\n\n"
+
+    "Optional GWAS columns:\n"
     "  --se   COL   SE of OR (optional)\n"
-    "  --pval COL   P-value (used to infer SE if OR_SE not provided)\n"
-    "  --freq COL   (used in QC)\n"
-    "  --n    COL   (used in QC)\n\n"
-    "Optional:\n"
-    "  --format gwas|cojo|popcorn|mrmega\n"
+    "  --pval COL   P-value (needed if SE missing)\n"
+    "  --freq COL   Allele frequency (QC)\n"
+    "  --n    COL   Sample size (QC)\n\n"
+
+    "Optional output format:\n"
+    "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
+
+    "Quality Control options:\n"
     "  --maf VAL\n"
-    "  --remove-dup-snp\n"
+    "  --remove-dup-snp\n\n"
+
+    "Other options:\n"
+    "  --threads N\n"
+    "  --log FILE\n";
+}
+
+void print_calneff_help() {
+    cerr <<
+    "Usage:\n"
+    "  GWAStoolkit computeNeff [options]\n\n"
+
+    "Description:\n"
+    "  Compute effective sample size for binary trait:\n"
+    "      Neff = 4 * case * control / (case + control)\n"
+    "  Supports fixed case/control counts or per-SNP columns.\n\n"
+
+    "Mode 1: Fixed case/control values:\n"
+    "  --case INT --control INT --out FILE\n\n"
+
+    "Mode 2: Per-SNP counts:\n"
+    "  --gwas-summary FILE --case-col COL --control-col COL --out FILE\n\n"
+
+    "Optional output format:\n"
+    "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
+
+    "Other options:\n"
     "  --threads N\n"
     "  --log FILE\n";
 }
@@ -183,14 +246,18 @@ static void check_format_required_columns(const CommonArgs& P, const std::string
     if (need_snp) {
         require(!P.col_SNP.empty(), who + " requires --SNP column for formatted output.");
     }
-
+    
+    bool need_n = (who != "calneff");
+    if (need_n) {
+        require(!P.col_n.empty(), who + " requires --N column for formatted output.");
+    }
+    
     require(!P.g_A1.empty(),    who + " requires --A1 column for formatted output.");
     require(!P.g_A2.empty(),    who + " requires --A2 column for formatted output.");
     require(!P.g_p.empty(),     who + " requires --pval column for formatted output.");
     require(!P.col_freq.empty(),who + " requires --freq column for formatted output.");
     require(!P.col_beta.empty(),who + " requires --beta column for formatted output.");
     require(!P.col_se.empty(),  who + " requires --se column for formatted output.");
-    require(!P.col_n.empty(),   who + " requires --n column for formatted output.");
 }
 
 // ------------------------- 解析 rsid-impu -----------------------
@@ -323,9 +390,71 @@ Args_Or2Beta parse_args_or2beta(int argc, char* argv[]) {
 
     require(args.count("--or"), "Missing required: --or");
     P.col_or = args["--or"];
-    require(!P.col_SNP.empty(), "or2beta requires --SNP column.");
-    require(!P.col_or.empty(),  "or2beta requires --or column.");
+    require(!P.col_SNP.empty(),  "or2beta requires --SNP column.");
+    require(!P.col_or.empty(),   "or2beta requires --or column.");
+    require(!P.col_freq.empty(), "or2beta requires  --freq column.");
+    require(!P.col_beta.empty(), "or2beta requires  --beta column.");
+    require(!P.col_se.empty(),   "or2beta requires  --se column.");
 
     check_format_required_columns(P, "or2beta");
+    return P;
+}
+
+Args_CalNeff parse_args_calneff(int argc, char* argv[])
+{
+    map<string,string> args;
+
+    for (int i=1; i<argc; ) {
+        string key = argv[i];
+
+        if (key == "--help") {
+            print_calneff_help();
+            exit(0);
+        }
+
+        if (!common_params.count(key) &&
+            !calneff_params.count(key)) {
+            LOG_ERROR("Unknown parameter: " + key);
+            exit(1);
+        }
+
+        if (i+1 >= argc) {
+            LOG_ERROR("Missing value for " + key);
+            exit(1);
+        }
+
+        args[key] = argv[i+1];
+        i += 2;
+    }
+
+    Args_CalNeff P;
+    parse_common(P, args);
+
+    bool fixed = args.count("--case")      && args.count("--control");
+    bool perSNP = args.count("--case-col") && args.count("--control-col");
+
+    require(fixed || perSNP, 
+        "computeNeff requires --case/--control OR --case-col/--control-col");
+    require(!(fixed && perSNP), 
+    "Cannot mix fixed and per-SNP modes.");
+
+    require(!P.col_SNP.empty(),  "computeNeff requires --SNP column.");
+    require(!P.col_freq.empty(), "computeNeff requires  --freq column.");
+    require(!P.col_beta.empty(), "computeNeff requires  --beta column.");
+    require(!P.col_se.empty(),   "computeNeff requires  --se column.");
+
+    if (fixed) {
+        P.is_single = true;
+        P.case_n    = stoi(args["--case"]);
+        P.control_n = stoi(args["--control"]);
+    }
+
+    if (perSNP) {
+        P.is_column   = true;
+        P.case_col    = args["--case-col"];
+        P.control_col = args["--control-col"];
+    }
+
+    check_format_required_columns(P, "calneff");
     return P;
 }

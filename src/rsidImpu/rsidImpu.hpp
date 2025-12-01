@@ -14,8 +14,9 @@
 #include <unordered_map>
 #include <string>
 
-void process_gwas(const Args_RsidImpu& P,
-                const DBMap& mapdb);
+void process_rsidImpu(const Args_RsidImpu& P,
+                const DBMap& mapdb
+                );
 
 #endif
 
