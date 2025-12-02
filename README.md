@@ -37,10 +37,19 @@ Used for case/control GWAS.
 - Supports two modes:
    - **Mode 1 — Fixed case/control numbers**
    - **Mode 2 — Per-SNP case/control columns**
-```
-Neff = 4 * case * control / (case + control)
-```
+$$
+N_{eff} = \frac{4 \cdot case \cdot control}{case + control}
+$$
 After computing Neff, all SNPs are standardized:
+$$
+z = \frac{beta} {se}
+$$
+$$
+se = \frac{1} {\sqrt{2*p*(1 - p)*(Neff + z^2)}}
+$$
+$$
+beta= z * se
+$$
 ```
 z   = beta / se
 se  = 1 / sqrt(2 * p * (1 - p) * (Neff + z^2))
