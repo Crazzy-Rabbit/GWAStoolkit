@@ -42,20 +42,16 @@ Used for case/control GWAS.
    - **Mode 1 — Fixed case/control numbers**
    - **Mode 2 — Per-SNP case/control columns**
 
-After computing Neff, all SNPs are standardized, we know that $z = \frac{beta} {se}$:
-
+After computing Neff, all SNPs are standardized:\
+we know that $z = \frac{beta} {se}$ and
 $$
 se = \frac{1} {\sqrt{2*p*(1 - p)*(Neff + z^2)}}
 $$
+then, the beta can be calculated by:
+$$
+beta= z * se
+$$
 
-$$
-beta= z * se
-$$
-```
-z   = beta / se
-se  = 1 / sqrt(2 * p * (1 - p) * (Neff + z^2))
-beta= z * se
-```
 ## ⚙️ Installation
 ### Dependencies
 - g++ (support C++11)
