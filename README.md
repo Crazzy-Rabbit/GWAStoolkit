@@ -54,7 +54,8 @@ beta= z * se
 ```
 git clone https://github.com/Crazzy-Rabbit/GWAStoolkit.git
 cd GWAStoolkit
-make
+
+../GWAStoolkit --help
 ```
 You will get:
 ```
