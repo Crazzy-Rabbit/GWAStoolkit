@@ -32,21 +32,22 @@ Convert any GWAS summary file to formats required by:
 
 ### 4️⃣ computeNeff — Compute effective sample size (binary traits)
 
+$$
+N_{eff} = \frac{4 \cdot case \cdot control}{case + control}
+$$
+
 Used for case/control GWAS.
 - Full QC support
 - Supports two modes:
    - **Mode 1 — Fixed case/control numbers**
    - **Mode 2 — Per-SNP case/control columns**
-$$
-N_{eff} = \frac{4 \cdot case \cdot control}{case + control}
-$$
-After computing Neff, all SNPs are standardized:
-$$
-z = \frac{beta} {se}
-$$
+
+After computing Neff, all SNPs are standardized, we know that $z = \frac{beta} {se}$:
+
 $$
 se = \frac{1} {\sqrt{2*p*(1 - p)*(Neff + z^2)}}
 $$
+
 $$
 beta= z * se
 $$
