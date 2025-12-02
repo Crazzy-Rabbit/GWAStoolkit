@@ -6,12 +6,15 @@
 #include "utils/log.hpp"
 #include "utils/FormatEngine.hpp"
 #include "utils/gadgets.hpp"
+#include "utils/gwasQC.hpp"
 
 #include <vector>
 #include <string>
 #include <cmath>
 #include <iostream>
 #include <algorithm>
+#include <unordered_map>
+#include <deque>
 
 using namespace std;
 
@@ -22,7 +25,7 @@ static inline double calc_neff(double cs, double ct){
     return 4.0 * cs * ct / s;
 }
 
-// standardization of beta abd se
+// standardization of beta and se
 static inline bool std_effect(
     double freq, double beta_old, double se_old, double Neff,
     double &beta_new, double &se_new
@@ -45,14 +48,14 @@ void run_computeNeff(const Args_CalNeff& P)
 
     FormatEngine FE;
     FormatSpec spec = FE.get_format(P.format);
-
-    LOG_INFO("computeNeff: loading GWAS...");
     Writer fout(P.out_file, P.format);
+
     if (!fout.good()){
         LOG_ERROR("Cannot open output: " + P.out_file);
         return;
     }
 
+    // header
     LineReader reader(P.gwas_file);
     string line;
     if (!reader.getline(line)) {
@@ -62,17 +65,38 @@ void run_computeNeff(const Args_CalNeff& P)
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     auto header = split(line);
 
-    // idx
-    int idx_snp  = find_col(header, P.col_SNP);
-    int idx_A1   = find_col(header, P.g_A1);
-    int idx_A2   = find_col(header, P.g_A2);
+    // header check
+    int idx_snp = find_col(header, P.col_SNP);
+    require(idx_snp >= 0, "GWAS missing required column [" + P.col_SNP + "] for computeNeff.");
+
+    int idx_A1 = find_col(header, P.g_A1);
+    require(idx_A1 >= 0, "GWAS missing required column [" + P.g_A1 + "] for computeNeff.");
+
+    int idx_A2 = find_col(header, P.g_A2);
+    require(idx_A2 >= 0, "GWAS missing required column [" + P.g_A2 + "] for computeNeff.");
+
     int idx_freq = find_col(header, P.col_freq);
+    require(idx_freq >= 0, "GWAS missing required column [" + P.col_freq + "] for computeNeff.");
+
     int idx_beta = find_col(header, P.col_beta);
-    int idx_se   = find_col(header, P.col_se);
-    int idx_p    = find_col(header, P.g_p);
+    require(idx_beta >= 0, "GWAS missing required column [" + P.col_beta + "] for computeNeff.");
+
+    int idx_se = find_col(header, P.col_se);
+    require(idx_se >= 0, "GWAS missing required column [" + P.col_se + "] for computeNeff.");
+
+    int idx_p = find_col(header, P.g_p);
+    require(idx_p >= 0, "GWAS missing required column [" + P.g_p + "] for computeNeff.");
 
     int idx_case    = -1;
     int idx_control = -1;
+
+    // 读入所有数据行
+    deque<string> lines;
+    while (reader.getline(line)){
+        if (!line.empty()) lines.push_back(line);
+    }
+    size_t n = lines.size();
+    LOG_INFO("Loaded " + to_string(n) + " GWAS lines for computeNeff.");
 
     // -------------------------
     // Case 1: per-SNP NEFF 计算
@@ -105,25 +129,61 @@ void run_computeNeff(const Args_CalNeff& P)
 
     }
 
-    // write header
-    {
-        if (!spec.cols.empty()){
-            string header_line;
-            for (size_t i=0; i<spec.cols.size(); i++){
-                if (i) header_line += "\t";
-                header_line += spec.cols[i];
-            }
-            fout.write_line(header_line);
+    //================ QC + 去重 (按 SNP) ================
+    vector<bool> keep(n, true);
+    int idx_n = -1;
+    
+    bool can_qc = (idx_beta>=0 && idx_se>=0 && idx_freq>=0 && idx_p>=0);
+    if (can_qc){
+        int idx_n_safe = (idx_n >= 0 ? idx_n : idx_freq); 
+
+        gwas_basic_qc(lines, header,
+                    idx_beta, idx_se, idx_freq, idx_p, idx_n_safe,
+                    keep, P.maf_threshold);
+    } else {
+        LOG_WARN("Cannot perform full QC in computeNeff (missing beta/se/freq/N/p columns).");
+    }
+
+    // remove dup SNP（用 SNP 作为 key）
+    if (P.remove_dup_snp){
+        vector<string> snp_vec(n);
+        for (size_t i=0; i<n; i++){
+            if (!keep[i]) continue;
+            auto f = split(lines[i]);
+            if (idx_snp>=0 && idx_snp<(int)f.size())
+                snp_vec[i] = f[idx_snp];
         }
+        gwas_remove_dup(lines, header, idx_p, snp_vec, keep);
+    }
+
+
+    // writer header
+    if (P.format == "gwas") {
+        // raw header
+        string h;
+        for (size_t i=0; i<header.size(); i++){
+            if (i) h += "\t";
+            h += header[i];
+        }
+        fout.write_line(h);
+    } else {
+        string h;
+        for (size_t i=0; i<spec.cols.size(); i++){
+            if (i) h += "\t";
+            h += spec.cols[i];
+        }
+        fout.write_line(h);
     }
 
     // process GWAS per row
-    while (reader.getline(line)){
-        if (line.empty()) continue;
-        line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-        auto f = split(line);
+    for (size_t i=0; i<n; i++){
+        if (!keep[i]) continue;
 
-        // 决定当前 SNP 的 Neff（根据两种模式）
+        string ln = lines[i];
+        ln.erase(remove(ln.begin(), ln.end(), '\r'), ln.end());
+        auto f = split(ln);
+
+        // 计算当前 SNP 的 Neff
         double Neff = NAN;
         if (P.is_single){
             Neff = Neff_fixed;
@@ -134,17 +194,19 @@ void run_computeNeff(const Args_CalNeff& P)
             Neff      = calc_neff(cs, ct);
         }
 
-        if (!std::isfinite(Neff) || Neff <= 0.0) {
+        if (!std::isfinite(Neff) || Neff <= 0.0) continue;
+
+        if (P.format == "gwas"){
+            fout.write_line(ln);
             continue;
         }
 
         unordered_map<string,string> row;
 
-        row["SNP"]  = f[idx_snp]; 
-        row["A1"]   = f[idx_A1];
-        row["A2"]   = f[idx_A2];
+        row["SNP"] = f[idx_snp]; 
+        row["A1"]  = f[idx_A1];
+        row["A2"]  = f[idx_A2];
 
-        // freq/beta/se scaling
         if (idx_freq>=0 && idx_beta>=0 && idx_se>=0 &&
             idx_freq < (int)f.size() &&
             idx_beta < (int)f.size() &&
@@ -166,8 +228,11 @@ void run_computeNeff(const Args_CalNeff& P)
             }
         }
 
-        row["p"]    = f[idx_p];
-        row["N"]    = std::to_string(Neff);
-        fout.write_line(FE.format_line(spec, row));
+        if (idx_p >= 0 && idx_p < (int)f.size()) row["p"] = f[idx_p];
+        row["N"] = std::to_string(Neff);
+
+        string out_line = FE.format_line(spec, row);
+        fout.write_line(out_line);
     }
+
 }

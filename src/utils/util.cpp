@@ -6,6 +6,7 @@
 //
 
 #include "utils/util.hpp"
+#include "utils/log.hpp"
 
 #include <sstream>
 #include <algorithm>
@@ -65,4 +66,12 @@ int find_col(const vector<string> &header, const string &colname){
     for (int i = 0; i < (int)header.size(); i++)
         if (header[i] == colname) return i;
     return -1;
+}
+
+//
+void require(bool cond, const std::string& msg){
+    if(!cond){
+        LOG_ERROR(msg);
+        exit(1);
+    }
 }

@@ -17,5 +17,5 @@ std::string upper(const std::string& s);
 std::string norm_chr(const std::string &chr);
 bool ends_with(const std::string& s, const std::string& suffix);
 int find_col(const std::vector<std::string>& header, const std::string& colname);
-
+void require(bool cond, const std::string& msg);
 #endif

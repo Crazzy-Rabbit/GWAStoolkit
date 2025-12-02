@@ -1,0 +1,4 @@
+CHR POS    A1  A2  RSID
+1   10001  A   G   rs100
+1   20001  T   C   rs200
+2   15000  G   A   rs300

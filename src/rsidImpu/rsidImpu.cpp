@@ -1,6 +1,6 @@
 //
-//  gwas.cpp
-//  rsidImpu
+//  rsidImpu.cpp
+//  GWAStoolkit
 //  Created by Lulu Shi on 24/11/2025.
 //  Copyright © 2025 Lulu Shi. All rights reserved.
 //
@@ -14,7 +14,6 @@
 #include "rsidImpu/rsidImpu.hpp"
 #include "rsidImpu/allele.hpp"
 #include "rsidImpu/dbsnp.hpp"
-
 
 #include <fstream>
 #include <iostream>
@@ -41,16 +40,23 @@ void process_rsidImpu(const Args_RsidImpu& P,
     auto header = split(line);
     
     // find the col, CHR, POS, A1, A2, P 列
-    int gCHR = find_col(header, P.g_chr);
-    int gPOS = find_col(header, P.g_pos);
-    int gA1  = find_col(header, P.g_A1);
-    int gA2  = find_col(header, P.g_A2);
-    int gP   = find_col(header, P.g_p);
+    int gCHR     = find_col(header, P.g_chr); 
+    require(gCHR >= 0, "GWAS missing required column [" + P.g_chr + "] for rsidImpu.");
+    
+    int gPOS     = find_col(header, P.g_pos);
+    require(gPOS >= 0, "GWAS missing required column [" + P.g_pos + "] for rsidImpu.");
 
-    if (gCHR<0||gPOS<0||gA1<0||gA2<0||gP<0){
-        LOG_ERROR("GWAS header incomplete.");
-        exit(1);
-    }
+    int gA1      = find_col(header, P.g_A1);
+    require(gA1 >= 0, "GWAS missing required column [" + P.g_A1 + "] for rsidImpu.");
+
+    int gA2 = find_col(header, P.g_A2);
+    require(gA2 >= 0, "GWAS missing required column [" + P.g_A2 + "] for rsidImpu.");
+
+    int idx_beta = find_col(header, P.col_beta);
+    int idx_se   = find_col(header, P.col_se);
+    int idx_freq = find_col(header, P.col_freq);
+    int idx_pv   = find_col(header, P.g_p);
+    int idx_n    = find_col(header, P.col_n);
 
     //================ 2. 读入 GWAS 数据行 =================
     while (reader.getline(line)){
@@ -62,36 +68,41 @@ void process_rsidImpu(const Args_RsidImpu& P,
     LOG_INFO("Loaded GWAS lines (data): " + std::to_string(n));
 
     //================ 基础 QC：过滤无效 N/beta/se/freq/P =================
-    vector<bool> keep_qc(gwas_lines.size(), true);
-
-    int idx_beta = find_col(header, P.col_beta);
-    int idx_se   = find_col(header, P.col_se);
-    int idx_freq = find_col(header, P.col_freq);
-    int idx_pv   = find_col(header, P.g_p);     // pval
-    int idx_n    = find_col(header, P.col_n);
+    vector<bool> keep_qc(n, true);
     double maf   = P.maf_threshold;
-    
-    gwas_basic_qc(gwas_lines, header, idx_beta, idx_se, idx_freq, idx_pv, idx_n, keep_qc, maf);
 
-    vector<bool>    keep(n,false);
-    vector<string>  rsid_vec(n);
-    
-    // ---------- 把 QC 过滤结果同步到 keep ----------
-    for (size_t i = 0; i < n; i++){
-        if (!keep_qc[i]) keep[i] = false;
+    bool can_qc = (idx_beta >= 0 &&
+                idx_se   >= 0 &&
+                idx_freq >= 0 &&
+                idx_pv   >= 0 &&
+                idx_n    >= 0);
+    if (can_qc) {
+        gwas_basic_qc(gwas_lines, header, idx_beta, idx_se, idx_freq, idx_pv, idx_n, keep_qc, maf);
+    } else {
+        LOG_WARN("Cannot perform full QC in rsidImpu (missing beta/se/freq/N/p columns).");
     }
+    
+    vector<bool>   keep(n,false);       // 是否最终进入主输出
+    vector<string> rsid_vec(n);         // 匹配到的 rsID
 
-    //================ 3. 匹配 dbSNP，确定哪些行有 rsid =================
-    for (long i=0; i<(long)n; i++){
-        auto f = split(gwas_lines[i]);
+    //================  匹配 dbSNP，确定哪些行有 rsid =================
+    for (size_t i=0; i<n; i++){
+        if (!keep_qc[i]) {
+            keep[i] = false;
+            continue;
+        }
         
+        auto f = split(gwas_lines[i]);
+
         int max_col = gCHR;
         if (gPOS > max_col) max_col = gPOS;
         if (gA1  > max_col) max_col = gA1;
         if (gA2  > max_col) max_col = gA2;
-        if (gP   > max_col) max_col = gP;
 
-        if ((int)f.size() <= max_col) continue;
+        if ((int)f.size() <= max_col) {
+            keep[i] = false;
+            continue;
+        }
 
         // chr-bucket DBMap
         // string key = make_key(f[gCHR], f[gPOS], f[gA1], f[gA2]);
@@ -104,9 +115,13 @@ void process_rsidImpu(const Args_RsidImpu& P,
         if (it_chr != mapdb.end()) {
             auto it = it_chr->second.find(key);
             if (it != it_chr->second.end()) {
-                keep[i] = true;
+                keep[i] = true;             // 只有匹配到 rsID 的才保留
                 rsid_vec[i] = it->second;
+            } else {
+                keep[i] = false;
             }
+        } else {
+            keep[i] = false;
         }
     }
     
@@ -114,13 +129,13 @@ void process_rsidImpu(const Args_RsidImpu& P,
         gwas_remove_dup(
             gwas_lines,
             header,
-            gP,          // P 列 index
+            idx_pv,          // P 列 index
             rsid_vec,
             keep
         );
     }
     
-    //================ 4. 构建 Writer（自动 txt / gz） =================
+    //================ Writer（自动 txt / gz） =================
     bool out_is_gz = ends_with(P.out_file, ".gz");
 
     std::string out_main    = P.out_file;
@@ -145,21 +160,21 @@ void process_rsidImpu(const Args_RsidImpu& P,
     // header
     if (P.format == "gwas") {
         // 原始 header + SNP
-        string header_line;
+        string h;
         for (size_t j=0; j<header.size(); j++) {
-            if (j) header_line += "\t";
-            header_line += header[j];
+            if (j) h += "\t";
+            h += header[j];
         }
-        header_line += "\tSNP";
-        fout.write_line(header_line);
+        h += "\tSNP";
+        fout.write_line(h);
     } else {
         // 格式化 header
-        string header_line;
+        string h;
         for (size_t j=0; j<spec.cols.size(); j++) {
-            if (j) header_line += "\t";
-            header_line += spec.cols[j];
+            if (j) h += "\t";
+            h += spec.cols[j];
         }
-        fout.write_line(header_line);
+        fout.write_line(h);
     }
 
     // outfile 
@@ -169,14 +184,12 @@ void process_rsidImpu(const Args_RsidImpu& P,
             gwas_lines[i].end()
         );
 
+        // 未保留（QC 不通过或没匹配到 rsID）→ unmatch
         if (!keep[i]) {
             funm.write_line(gwas_lines[i]);
             continue;
         }
-        gwas_lines[i].erase(
-            std::remove(gwas_lines[i].begin(), gwas_lines[i].end(), '\r'),
-            gwas_lines[i].end()
-        );
+
         auto f = split(gwas_lines[i]);
 
         if (P.format == "gwas") {
@@ -190,11 +203,16 @@ void process_rsidImpu(const Args_RsidImpu& P,
         row["A1"]   = f[gA1];
         row["A2"]   = f[gA2];
 
-        if (idx_freq >= 0) row["freq"] = f[idx_freq];
-        if (idx_beta >= 0) row["beta"] = f[idx_beta];
-        if (idx_se   >= 0) row["se"]   = f[idx_se];
-        if (idx_pv   >= 0) row["p"]    = f[idx_pv];
-        if (idx_n    >= 0) row["N"]    = f[idx_n];
+        if (idx_freq>=0 && idx_freq<(int)f.size())
+            row["freq"]=f[idx_freq];
+        if (idx_beta>=0 && idx_beta<(int)f.size())
+            row["beta"]=f[idx_beta];
+        if (idx_se>=0 && idx_se<(int)f.size())
+            row["se"]=f[idx_se];
+        if (idx_pv>=0 && idx_pv<(int)f.size())
+            row["p"]=f[idx_pv];
+        if (idx_n>=0 && idx_n<(int)f.size())
+            row["N"]=f[idx_n];
 
         fout.write_line(FE.format_line(spec, row));
     }

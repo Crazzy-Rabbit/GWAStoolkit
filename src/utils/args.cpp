@@ -1,11 +1,10 @@
 //
 //  args.cpp
-//  rsidImpu
+//  GWAStookit
 //
-//  Created by Lulu Shi on 28/11/2025.
+//  Created by Lulu Shi on 02/12/2025.
 //  Copyright © 2025 Lulu Shi. All rights reserved.
 //
-
 
 #include "utils/args.hpp"
 #include "utils/log.hpp"
@@ -31,7 +30,8 @@ static const set<string> common_params = {
 };
 
 static const std::set<std::string> rsidimpu_params = {
-    "--dbsnp", "--dbchr", "--dbpos", "--dbA1", "--dbA2", "--dbrsid"
+    "--dbsnp", "--dbchr", "--dbpos", "--dbA1", "--dbA2", "--dbrsid",
+    "--chr", "--pos"
 };
 static const std::set<std::string> convert_params = {};
 static const std::set<std::string> or2beta_params = {
@@ -71,7 +71,7 @@ static void parse_common(CommonArgs& C, map<string,string>& args) {
 
     if (args.count("--log")) {
         C.log_enabled = true;
-        C.log_file = args["--log"];
+        C.log_file    = args["--log"];
     }
 
     if (args.count("--remove-dup-snp")){
@@ -84,18 +84,39 @@ static void parse_common(CommonArgs& C, map<string,string>& args) {
 
     // 公共列名
     if (args.count("--SNP"))   C.col_SNP  = args["--SNP"];
-    if (args.count("--chr"))   C.g_chr    = args["--chr"];
-    if (args.count("--pos"))   C.g_pos    = args["--pos"];
-    if (args.count("--A1"))    C.g_A1     = args["--A1"];
-    if (args.count("--A2"))    C.g_A2     = args["--A2"];
-    if (args.count("--pval"))  C.g_p      = args["--pval"];
-    if (args.count("--freq"))  C.col_freq = args["--freq"];
-    if (args.count("--beta"))  C.col_beta = args["--beta"];
-    if (args.count("--se"))    C.col_se   = args["--se"];
-    if (args.count("--n"))     C.col_n    = args["--n"];
+    if (C.col_SNP.empty())     C.col_SNP  = "SNP";
 
-    if (args.count("--format"))
+    if (args.count("--chr"))   C.g_chr    = args["--chr"];
+    if (C.g_chr.empty())       C.g_chr    = "CHR";
+
+    if (args.count("--pos"))   C.g_pos    = args["--pos"];
+    if (C.g_pos.empty())       C.g_pos    = "POS";
+
+    if (args.count("--A1"))    C.g_A1     = args["--A1"];
+    if (C.g_A1.empty())        C.g_A1     = "A1";
+
+    if (args.count("--A2"))    C.g_A2     = args["--A2"];
+    if (C.g_A2.empty())        C.g_A2     = "A2";
+
+    if (args.count("--pval"))  C.g_p      = args["--pval"];
+    if (C.g_p.empty())         C.g_p      = "p";
+
+    if (args.count("--freq"))  C.col_freq = args["--freq"];
+    if (C.col_freq.empty())    C.col_freq = "freq";
+
+    if (args.count("--beta"))  C.col_beta = args["--beta"];
+    if (C.col_beta.empty())    C.col_beta = "b";
+
+    if (args.count("--se"))    C.col_se   = args["--se"];
+    if (C.col_se.empty())      C.col_se   = "se";
+
+    if (args.count("--n"))     C.col_n    = args["--n"];
+    if (C.col_n.empty())       C.col_n    = "N";
+
+    if (args.count("--format")) 
         C.format = args["--format"];
+    else
+        C.format = "gwas";
     check_format(C.format);
 }
 
@@ -115,8 +136,13 @@ void print_rsidimpu_help() {
     "  --gwas-summary FILE        Input GWAS summary statistics (txt / tsv / gz)\n"
     "  --dbsnp FILE               dbSNP or PLINK .bim file (txt / gz)\n"
     "  --out FILE                 Output file (txt or .gz)\n"
-    "  --dbchr COL --dbpos COL --dbA1 COL --dbA2 COL --dbrsid COL\n"
-    "                             Column names in dbSNP file\n\n"
+
+    "Required dbSNP columns:\n"
+    "  --dbchr  COL  Chromosome column      (default: CHR)\n"
+    "  --dbpos  COL  Base position column   (default: POS)\n"
+    "  --dbrsid COL  rsid for SNP           (default: RSID)\n"
+    "  --dbA1   COL  REF allele             (default: REF)\n"
+    "  --dbA2   COL  ALT allele             (default: ALT)\n\n" 
 
     "Required GWAS columns:\n"
     "  --chr  COL   Chromosome column      (default: CHR)\n"
@@ -128,10 +154,10 @@ void print_rsidimpu_help() {
     "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
 
     "Optional GWAS columns (required depending on --format):\n"
-    "  --pval COL   P-value column         (default: p)\n"
     "  --freq COL   Allele frequency       (default: freq)\n"
     "  --beta COL   Effect size            (default: b)\n"
     "  --se   COL   Standard error         (default: se)\n"
+    "  --pval COL   P-value column         (default: p)\n"
     "  --n    COL   Sample size            (default: N)\n\n"
 
     "Quality Control options:\n"
@@ -159,12 +185,13 @@ void print_convert_help() {
     "  --SNP COL               SNP identifier column\n\n"
 
     "Required GWAS columns for conversion:\n"
+    "  --SNP  COL   Marker name          (default: SNP)\n"
     "  --A1   COL   Effect allele        (default: A1)\n"
     "  --A2   COL   Other allele         (default: A2)\n"
-    "  --pval COL   P-value              (default: p)\n"
     "  --freq COL   Allele frequency     (default: freq)\n"
     "  --beta COL   Beta                 (default: b)\n"
     "  --se   COL   Standard error       (default: se)\n"
+    "  --pval COL   P-value              (default: p)\n"
     "  --n    COL   Sample size          (default: N)\n\n"
 
     "Quality Control options:\n"
@@ -188,25 +215,21 @@ void print_or2beta_help() {
     "Required arguments:\n"
     "  --gwas-summary FILE    Input GWAS summary statistics (txt / gz)\n"
     "  --out FILE             Output file (txt or .gz)\n"
-    "  --or COL               Column containing OR values\n"
-    "  --SNP COL              SNP ID column\n\n"
 
-    "Required allele columns:\n"
-    "  --A1 COL    (default: A1)\n"
-    "  --A2 COL    (default: A2)\n\n"
-
-    "Optional GWAS columns:\n"
-    "  --se   COL   SE of OR (optional)\n"
-    "  --pval COL   P-value (needed if SE missing)\n"
-    "  --freq COL   Allele frequency (QC)\n"
-    "  --n    COL   Sample size (QC)\n\n"
-
-    "Optional output format:\n"
-    "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
+    "Required GWAS columns for or2beta:\n"
+    "  --SNP  COL   Marker name          (default: SNP)\n"
+    "  --A1   COL   Effect allele        (default: A1)\n"
+    "  --A2   COL   Other allele         (default: A2)\n"
+    "  --freq COL   Allele frequency     (default: freq)\n"
+    "  --or   COL   OR values            (default: OR)\n"
+    "  --pval COL   P-value              (default: p)\n"
 
     "Quality Control options:\n"
     "  --maf VAL\n"
     "  --remove-dup-snp\n\n"
+
+    "Optional output format:\n"
+    "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
 
     "Other options:\n"
     "  --threads N\n"
@@ -229,35 +252,25 @@ void print_calneff_help() {
     "Mode 2: Per-SNP counts:\n"
     "  --gwas-summary FILE --case-col COL --control-col COL --out FILE\n\n"
 
+    "Required GWAS columns for computeNeff:\n"
+    "  --SNP  COL   Marker name          (default: SNP)\n"
+    "  --A1   COL   Effect allele        (default: A1)\n"
+    "  --A2   COL   Other allele         (default: A2)\n"
+    "  --freq COL   Allele frequency     (default: freq)\n"
+    "  --beta COL   Beta                 (default: b)\n"
+    "  --se   COL   Standard error       (default: se)\n"
+    "  --pval COL   P-value              (default: p)\n"
+
+    "Quality Control options:\n"
+    "  --maf VAL            MAF threshold (default: 0.01)\n"
+    "  --remove-dup-snp     Keep only lowest-P SNP if duplicates exist\n\n"
+
     "Optional output format:\n"
     "  --format gwas|cojo|popcorn|mrmega   (default: gwas)\n\n"
 
     "Other options:\n"
     "  --threads N\n"
     "  --log FILE\n";
-}
-
-static void check_format_required_columns(const CommonArgs& P, const std::string& who)
-{
-    // gwas 格式不做严格限制，可仅输出原始列
-    if (P.format == "gwas") return;
-    // rsidImpu 不需要 SNP 列
-    bool need_snp = (who != "rsidImpu");
-    if (need_snp) {
-        require(!P.col_SNP.empty(), who + " requires --SNP column for formatted output.");
-    }
-    
-    bool need_n = (who != "calneff");
-    if (need_n) {
-        require(!P.col_n.empty(), who + " requires --N column for formatted output.");
-    }
-    
-    require(!P.g_A1.empty(),    who + " requires --A1 column for formatted output.");
-    require(!P.g_A2.empty(),    who + " requires --A2 column for formatted output.");
-    require(!P.g_p.empty(),     who + " requires --pval column for formatted output.");
-    require(!P.col_freq.empty(),who + " requires --freq column for formatted output.");
-    require(!P.col_beta.empty(),who + " requires --beta column for formatted output.");
-    require(!P.col_se.empty(),  who + " requires --se column for formatted output.");
 }
 
 // ------------------------- 解析 rsid-impu -----------------------
@@ -297,34 +310,23 @@ Args_RsidImpu parse_args_rsidimpu(int argc, char* argv[]) {
     Args_RsidImpu P;
     parse_common(P, args);
 
-    // for gwas columns
-    require(!P.g_chr.empty(), "rsidImpu requires --chr column.");
-    require(!P.g_pos.empty(), "rsidImpu requires --pos column.");
-    require(!P.g_A1.empty(),  "rsidImpu requires --A1 column.");
-    require(!P.g_A2.empty(),  "rsidImpu requires --A2 column.");
-
     // Required for rsid-impu
     require(args.count("--dbsnp"), "Missing required: --dbsnp");
-    require(args.count("--dbchr"), "Missing required: --dbchr");
-    require(args.count("--dbpos"), "Missing required: --dbpos");
-    require(args.count("--dbA1"),  "Missing required: --dbA1");
-    require(args.count("--dbA2"),  "Missing required: --dbA2");
-    require(args.count("--dbrsid"),"Missing required: --dbrsid");
-
     P.dbsnp_file = args["--dbsnp"];
-    P.d_chr  = args["--dbchr"];
-    P.d_pos  = args["--dbpos"];
-    P.d_A1   = args["--dbA1"];
-    P.d_A2   = args["--dbA2"];
-    P.d_rsid = args["--dbrsid"];
 
-    check_format_required_columns(P, "rsidImpu");
+    if (args.count("--dbchr")) P.d_chr = args["--dbchr"]; else P.d_chr = "CHR";
+    if (args.count("--dbpos")) P.d_pos = args["--dbpos"]; else P.d_pos = "POS";
+    if (args.count("--dbA1"))  P.d_A1  = args["--dbA1"];  else P.d_A1  = "REF";
+    if (args.count("--dbA2"))  P.d_A2  = args["--dbA2"];  else P.d_A2  = "ALT";
+    if (args.count("--dbrsid"))P.d_rsid= args["--dbrsid"];else P.d_rsid= "RSID";
+
     return P;
 }
 
 // ------------------------- 解析 convert ------------------------------
 Args_Convert parse_args_convert(int argc, char* argv[]) {
     map<string,string> args;
+    set<string> flags = {"--remove-dup-snp"};
 
     for (int i=1; i<argc; ) {
         string key = argv[i];
@@ -341,6 +343,11 @@ Args_Convert parse_args_convert(int argc, char* argv[]) {
             exit(1);
         }
 
+        // flags
+        if (flags.count(key)) {
+            args[key] = "1"; i++; continue;
+        }
+
         if (i+1 >= argc) {
             LOG_ERROR("Missing value for " + key);
             exit(1);
@@ -353,13 +360,22 @@ Args_Convert parse_args_convert(int argc, char* argv[]) {
     Args_Convert P;
     parse_common(P, args);
 
-    check_format_required_columns(P, "convert");
+    require(!P.col_SNP.empty(),  "convert requires --SNP column.");
+    require(!P.g_A1.empty(),     "convert requires --A1 column.");
+    require(!P.g_A2.empty(),     "convert requires --A2 column.");
+    require(!P.col_freq.empty(), "convert requires --freq column.");
+    require(!P.col_beta.empty(), "convert requires --beta column.");
+    require(!P.col_se.empty(),   "convert requires --se column.");
+    require(!P.g_p.empty(),      "convert requires --pval column.");
+    require(!P.col_n.empty(),    "convert requires --n column.");
+
     return P;
 }
 
 // ------------------------- 解析 or2beta ------------------------------
 Args_Or2Beta parse_args_or2beta(int argc, char* argv[]) {
     map<string,string> args;
+    set<string> flags = {"--remove-dup-snp"};
 
     for (int i=1; i<argc; ) {
         string key = argv[i];
@@ -376,6 +392,11 @@ Args_Or2Beta parse_args_or2beta(int argc, char* argv[]) {
             exit(1);
         }
 
+        // flags
+        if (flags.count(key)) {
+            args[key] = "1"; i++; continue;
+        }
+
         if (i+1 >= argc) {
             LOG_ERROR("Missing value for " + key);
             exit(1);
@@ -390,19 +411,22 @@ Args_Or2Beta parse_args_or2beta(int argc, char* argv[]) {
 
     require(args.count("--or"), "Missing required: --or");
     P.col_or = args["--or"];
-    require(!P.col_SNP.empty(),  "or2beta requires --SNP column.");
-    require(!P.col_or.empty(),   "or2beta requires --or column.");
-    require(!P.col_freq.empty(), "or2beta requires  --freq column.");
-    require(!P.col_beta.empty(), "or2beta requires  --beta column.");
-    require(!P.col_se.empty(),   "or2beta requires  --se column.");
 
-    check_format_required_columns(P, "or2beta");
+    if (args.count("--or")) P.col_or= args["--or"]; else P.col_or= "OR";
+    require(!P.col_SNP.empty(),  "or2beta requires --SNP column.");
+    require(!P.g_A1.empty(),     "or2beta requires --A1 column.");
+    require(!P.g_A2.empty(),     "or2beta requires --A2 column.");
+    require(!P.col_freq.empty(), "or2beta requires --freq column.");
+    require(!P.col_se.empty() || !P.g_p.empty(),
+            "or2beta requires --se or --pval to compute SE.");
+
     return P;
 }
 
 Args_CalNeff parse_args_calneff(int argc, char* argv[])
 {
     map<string,string> args;
+    set<string> flags = {"--remove-dup-snp"};
 
     for (int i=1; i<argc; ) {
         string key = argv[i];
@@ -416,6 +440,11 @@ Args_CalNeff parse_args_calneff(int argc, char* argv[])
             !calneff_params.count(key)) {
             LOG_ERROR("Unknown parameter: " + key);
             exit(1);
+        }
+
+        // flags
+        if (flags.count(key)) {
+            args[key] = "1"; i++; continue;
         }
 
         if (i+1 >= argc) {
@@ -436,12 +465,7 @@ Args_CalNeff parse_args_calneff(int argc, char* argv[])
     require(fixed || perSNP, 
         "computeNeff requires --case/--control OR --case-col/--control-col");
     require(!(fixed && perSNP), 
-    "Cannot mix fixed and per-SNP modes.");
-
-    require(!P.col_SNP.empty(),  "computeNeff requires --SNP column.");
-    require(!P.col_freq.empty(), "computeNeff requires  --freq column.");
-    require(!P.col_beta.empty(), "computeNeff requires  --beta column.");
-    require(!P.col_se.empty(),   "computeNeff requires  --se column.");
+        "Cannot mix fixed and per-SNP modes.");
 
     if (fixed) {
         P.is_single = true;
@@ -455,6 +479,12 @@ Args_CalNeff parse_args_calneff(int argc, char* argv[])
         P.control_col = args["--control-col"];
     }
 
-    check_format_required_columns(P, "calneff");
+    require(!P.col_SNP.empty(),  "computeNeff requires --SNP column.");
+    require(!P.col_freq.empty(), "computeNeff requires --freq column.");
+    require(!P.col_beta.empty(), "computeNeff requires --beta column.");
+    require(!P.col_se.empty(),   "computeNeff requires --se column.");
+    require(!P.g_p.empty(),      "computeNeff requires --pval column.");
+    require(!P.col_n.empty(),    "computeNeff requires --n column.");
+
     return P;
 }

@@ -72,14 +72,14 @@ Basic:
 GWAStoolkit rsidImpu \
   --gwas-summary gwas.txt.gz \
   --dbsnp dbsnp.txt.gz \
-  --out gwas.rsid.txt.gz \
-  --dbchr CHR --dbpos POS --dbA1 REF --dbA2 ALT --dbrsid RSID
+  --dbchr CHR --dbpos POS --dbA1 A1 --dbA2 A2 --dbrsid RSID \
+  --chr CHR --pos POS --A1 A1 --A2 A2 --beta beta --se se --freq freq --pval p \
+  --out gwas.rsid.txt.gz
 ```
 
 With specific output format:
 ```
---format cojo \
---freq Freq --beta Beta --se SE --n N --pval P
+--format cojo
 ```
 ### 🔧 2. convert Example
 ```
@@ -87,16 +87,23 @@ GWAStoolkit convert \
   --gwas-summary gwas.txt \
   --out gwas.cojo.txt \
   --format cojo \
-  --SNP SNP --A1 A1 --A2 A2 --pval P \
-  --freq FRQ --beta BETA --se SE --n N
+  --SNP SNP \
+  --A1 A1 --A2 A2 \
+  --freq freq \
+  --beta beta \
+  --se se \
+  --pval p \
+  --n N
 ```
 ### 🔧 3. or2beta Example
 ```
 GWAStoolkit or2beta \
   --gwas-summary gwas.txt \
   --out gwas.beta.txt \
+  --SNP SNP --A1 A1 --A2 A2 --freq freq --pval P \
   --or OR \
-  --SNP SNP --A1 A1 --A2 A2 --pval P
+  --format cojo \
+
 ```
 ### 🔧 4. computeNeff Example
 
@@ -104,17 +111,33 @@ Mode 1 — global case/control:
 ```
 GWAStoolkit computeNeff \
   --gwas-summary gwas.txt \
-  --out gwas.neff.txt \
-  --case 20000 --control 30000
+  --SNP SNP \
+  --A1 A1 --A2 A2 \
+  --freq freq \
+  --beta beta \
+  --se se \
+  --pval p \
+  --case 20000 \
+  --control 30000 \
+  --format cojo \
+  --out gwas.neff.txt
 ```
 
 Mode 2 — per-SNP:
 ```
 GWAStoolkit computeNeff \
   --gwas-summary gwas.txt \
+  --SNP SNP \
+  --A1 A1 --A2 A2 \
+  --freq freq \
+  --beta beta \
+  --se se \
+  --pval p \
+  --case-col n_case \
+  --control-col n_control \
+  --format cojo \
   --out gwas.neff.txt \
-  --case-col CASE \
-  --control-col CTRL
+
   ```
 ## 📦 Unified Argument System
 
@@ -124,8 +147,8 @@ All subcommands share:
 | `--gwas-summary` | Input GWAS (txt/tsv/csv/gz)                  | required         |
 | `--out`          | Output file (txt/gz supported)               | required         |
 | `--format`       | gwas/cojo/popcorn/mrmega                     | gwas             |
-| `--chr` `--pos` `--A1` `--A2` `--pval` | Column names           | CHR/POS/A1/A2/p  |
-| `--freq` `--beta` `--se` `--n` | Effect model columns            | freq/b/se/N      |
+| `--chr` `--pos` `--A1` `--A2`  | Column names           | CHR/POS/A1/A2  |
+| `--freq` `--beta` `--se` `--pval` `--n` | Effect model columns  | freq/b/se/p/N      |
 | `--maf`          | MAF threshold                                | 0.01             |
 | `--remove-dup-snp` | Drop duplicated SNP (keep smallest P)      | off              |
 | `--threads`      | Multi-threading                              | 1                |
@@ -135,10 +158,10 @@ Additional command-specific parameters:
 
 | Command      | Extra Required Parameters                          |
 |--------------|---------------------------------------------------|
-| rsidImpu     | `--dbsnp --dbchr --dbpos --dbA1 --dbA2 --dbrsid` |
-| convert      | `--SNP`                                           |
-| or2beta      | `--SNP --or`                                     |
-| computeNeff  | `(--case & --control) or (--case-col & --control-col)` |
+| rsidImpu     | `--dbsnp --dbchr --dbpos --dbA1 --dbA2 --dbrsid --chr --pos --A1 --A2` |
+| convert      | `--SNP --A1 --A2 --freq --beta --se --pval --N`                                           |
+| or2beta      | `--SNP --A1 --A2 --freq --or --pval --N`                                       |
+| computeNeff  | `--SNP --A1 --A2 --freq --beta --se --pval --N (--case & --control) or (--case-col & --control-col)` |
 
 ## 🧪 Example Output (COJO Format `--format cojo`)
 

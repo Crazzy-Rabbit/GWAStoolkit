@@ -25,8 +25,33 @@ void run_convert(const Args_Convert& P){
     }
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     auto header = split(line);
+    
+    // header check
+    int idx_snp  = find_col(header, P.col_SNP);
+    require(idx_snp >= 0, "GWAS missing required column [" + P.col_SNP + "] for convert.");
 
-    // read content
+    int idx_A1   = find_col(header, P.g_A1);
+    require(idx_A1 >= 0, "GWAS missing required column [" + P.g_A1 + "] for convert.");
+
+    int idx_A2   = find_col(header, P.g_A2);
+    require(idx_A2 >= 0, "GWAS missing required column [" + P.g_A2 + "] for convert.");
+
+    int idx_freq = find_col(header, P.col_freq);
+    require(idx_freq >= 0, "GWAS missing required column [" + P.col_freq + "] for convert.");
+
+    int idx_beta = find_col(header, P.col_beta);
+    require(idx_beta >= 0, "GWAS missing required column [" + P.col_beta + "] for convert.");
+
+    int idx_se   = find_col(header, P.col_se);
+    require(idx_se >= 0, "GWAS missing required column [" + P.col_se + "] for convert.");
+
+    int idx_p    = find_col(header, P.g_p);
+    require(idx_p >= 0, "GWAS missing required column [" + P.g_p + "] for convert.");
+
+    int idx_n    = find_col(header, P.col_n);
+    require(idx_n >= 0, "GWAS missing required column [" + P.col_n + "] for convert.");
+
+    // read all line
     deque<string> lines;
     while (lr.getline(line)) {
         if (!line.empty())
@@ -36,29 +61,33 @@ void run_convert(const Args_Convert& P){
     LOG_INFO("Loaded GWAS lines for convert: " + to_string(n));
 
     // QC, default maf = 0.01
-    vector<bool> keep_qc(n, true);
-
-    int idx_beta = find_col(header, P.col_beta);
-    int idx_se   = find_col(header, P.col_se);
-    int idx_freq = find_col(header, P.col_freq);
-    int idx_p    = find_col(header, P.g_p);
-    int idx_n    = find_col(header, P.col_n);
-
+    vector<bool> keep(n,true);
     // 如果列都存在，就执行QC，否则给warning
     bool can_qc = (idx_beta>=0 && idx_se>=0 && idx_freq>=0 && idx_p>=0 && idx_n>=0);
     if (can_qc) {
         gwas_basic_qc(lines, header,
                     idx_beta, idx_se, idx_freq, idx_p, idx_n,
-                    keep_qc, P.maf_threshold);
+                    keep, P.maf_threshold);
     } else {
         LOG_WARN("Cannot perform full QC in convert (missing beta/se/freq/N/P columns).");
+    }
+
+    if (P.remove_dup_snp) {
+        vector<string> snp_vec(n);
+        for (size_t i=0;i<n;i++){
+            if (!keep[i]) continue;
+            auto f = split(lines[i]);
+            if (idx_snp>=0 && idx_snp<(int)f.size())
+                snp_vec[i] = f[idx_snp];
+        }
+        gwas_remove_dup(lines, header, idx_p, snp_vec, keep);
     }
 
     // out format
     FormatEngine FE;
     FormatSpec spec = FE.get_format(P.format);
-
     Writer fout(P.out_file, P.format);
+
     if (!fout.good()){
         LOG_ERROR("Cannot open output file: " + P.out_file);
         exit(1);
@@ -83,12 +112,8 @@ void run_convert(const Args_Convert& P){
     }
 
     // write context
-    int idx_snp = find_col(header, P.col_SNP);
-    int idx_A1  = find_col(header, P.g_A1);
-    int idx_A2  = find_col(header, P.g_A2);
-
     for (size_t i=0; i<n; i++){
-        if (!keep_qc[i]) continue;
+        if (!keep[i]) continue;
 
         lines[i].erase(remove(lines[i].begin(), lines[i].end(), '\r'), lines[i].end());
         auto f = split(lines[i]);
@@ -99,8 +124,6 @@ void run_convert(const Args_Convert& P){
         }
 
         unordered_map<string,string> row;
-
-        // 按 spec 需要的列填值（cojo / smr 等）
         row["SNP"]  = f[idx_snp];
         row["A1"]   = f[idx_A1]; 
         row["A2"]   = f[idx_A2];

@@ -12,7 +12,7 @@ int cmd_or2beta(int argc, char* argv[]) {
 
     LOG_INFO("Running or2beta ...");
     run_or2beta(P);
-    // finish
+    LOG_INFO("or2beta finished.");
 
     return 0;
 }

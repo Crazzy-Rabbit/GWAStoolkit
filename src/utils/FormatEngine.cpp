@@ -41,7 +41,11 @@ FormatEngine::FormatEngine() {
         FormatSpec spec;
         spec.name          = "cojo";
         spec.cols          = {"SNP","A1","A2","freq","b","se","p","N"};
-        spec.required_rsid = true;   // 需要SNP
+        spec.required_rsid = true;
+        spec.required_beta = true;
+        spec.required_se   = true;
+        spec.required_freq = true;
+        spec.required_N    = true;
         spec.allow_missing = false;
         formats[spec.name] = spec;
     }
@@ -51,6 +55,11 @@ FormatEngine::FormatEngine() {
         FormatSpec spec;
         spec.name          = "popcorn";
         spec.cols          = {"SNP","A1","A2","freq","beta","SE","N"};
+        spec.required_rsid = true;
+        spec.required_beta = true;
+        spec.required_se   = true;
+        spec.required_freq = true;
+        spec.required_N    = true;
         spec.allow_missing = false;
         formats[spec.name] = spec;
     }
@@ -60,6 +69,11 @@ FormatEngine::FormatEngine() {
         FormatSpec spec;
         spec.name          = "mrmega";
         spec.cols          = {"SNP","A1","A2","FREQ","BETA","SE","P","N"};
+        spec.required_rsid = true;
+        spec.required_beta = true;
+        spec.required_se   = true;
+        spec.required_freq = true;
+        spec.required_N    = true;
         spec.allow_missing = false;
         formats[spec.name] = spec;
     }
@@ -86,9 +100,17 @@ std::string FormatEngine::format_line(
         // tranform to inhouse key
         std::string key = normalize_key(col);
 
-        auto it = row.find(col);
-        if (it != row.end()) oss << it->second;
-        else oss << "";
+        auto it = row.find(key);
+        if (it != row.end()) {
+            oss << it->second;
+        } else  {
+            if (!spec.allow_missing){
+                throw std::runtime_error(
+                    "Missing required column [" + col + "], internal key [" + key + "] not provided!"
+                );
+            }
+            oss << "";
+        }
     }
 
     return oss.str();
