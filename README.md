@@ -44,10 +44,13 @@ Used for case/control GWAS.
 
 After computing Neff, all SNPs are standardized:\
 we know that $z = \frac{beta} {se}$ and
+
 $$
 se = \frac{1} {\sqrt{2*p*(1 - p)*(Neff + z^2)}}
 $$
+
 then, the beta can be calculated by:
+
 $$
 beta= z * se
 $$
