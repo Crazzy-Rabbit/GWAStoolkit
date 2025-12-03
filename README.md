@@ -46,7 +46,7 @@ After computing Neff, all SNPs are standardized:\
 we know that $z = \frac{beta} {se}$ and
 
 $$
-se = \frac{1}{\sqrt{2 p (1 - p)\,(N_{\mathrm{eff}} + z^2)}}
+se = \frac{1}{\sqrt{2 p (1 - p)\(N_{\mathrm{eff}} + z^2)}}
 $$
 
 where $p$ is the $MAF$, and then, we can calculate $beta$ by:
