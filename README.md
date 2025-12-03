@@ -4,7 +4,7 @@
 GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool. \
 It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets (dbSNP > 15GB, millions of SNPs). 
 
-## Features
+## ⭐ Features
 ### 1️⃣ rsidImpu — Fast rsID annotation using dbSNP
 
 - Supports TSV / CSV / gzipped input
@@ -16,7 +16,7 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 - Automatic QC: MAF, beta, se, p, freq, N
 - Remove duplicate SNPs by smallest P-value
 
-#### Note !
+#### ❗Note
  **If your chr symbol meets the requirements listed below, then you don't need to modify the "chr" symbol in the dbSNP. It will automatically perform the mapping.**
 |GWAS | dbSNP |	will mapped as |
 |----|----|--------|
@@ -27,6 +27,20 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 |`24`	|`chrY`	|`Y`|
 |`MT`	|`chrM`	|`MT`|
 |`MT`	|`NC_012920.1` |`MT`|
+
+dbSNP vcf file treatment
+```
+bgzip -c GCF_000001405.25.gz > GCF_000001405.25.bgz
+tabix -p vcf GCF_000001405.25.bgz
+
+bcftools norm -m -any -Oz -o GRCH37.dbsnp157.vcf.gz GCF_000001405.25.bgz
+
+(
+    echo -e "CHROM\tPOS\tID\tREF\tALT"
+    bcftools query -f '%CHROM\t%POS\t%ID\t%REF\t%ALT\n' GRCH37.dbsnp157.vcf.gz
+) > GRCH37.dbSNP157.txt
+```
+Out file `GRCH37.dbSNP157.txt` can be used in `reidImpu`
 ### 2️⃣ convert — Convert between GWAS formats
 
 Convert any GWAS summary file to formats required by:
