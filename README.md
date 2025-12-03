@@ -28,13 +28,18 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 |`MT`	|`chrM`	|`MT`|
 |`MT`	|`NC_012920.1` |`MT`|
 
-dbSNP vcf file treatment
+##### dbSNP vcf file treatment
+
+1) bcftools split SNP such `A/C,G,T` as `A/C` `A/G` `A/T`
 ```
-bgzip -c GCF_000001405.25.gz > GCF_000001405.25.bgz
-tabix -p vcf GCF_000001405.25.bgz
+wget https://ftp.ncbi.nih.gov/snp/latest_release/VCF/GCF_000001405.25.gz
 
-bcftools norm -m -any -Oz -o GRCH37.dbsnp157.vcf.gz GCF_000001405.25.bgz
-
+gunzip -c GCF_000001405.25.gz | bgzip -c > GCF_000001405.25.bgz
+tabix -p vcf GCF_000001405.25.gz
+bcftools norm -m -any -Oz -o GRCH37.dbsnp157.vcf.gz GCF_000001405.25.gz
+```
+2) exrtract bed file as `CHROM POS ID REF ALT`
+```
 (
     echo -e "CHROM\tPOS\tID\tREF\tALT"
     bcftools query -f '%CHROM\t%POS\t%ID\t%REF\t%ALT\n' GRCH37.dbsnp157.vcf.gz
