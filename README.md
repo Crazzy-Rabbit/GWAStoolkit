@@ -16,6 +16,17 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 - Automatic QC: MAF, beta, se, p, freq, N
 - Remove duplicate SNPs by smallest P-value
 
+#### Note !
+ **If your chr symbol meets the requirements listed below, then you don't need to modify the "chr" symbol in the dbSNP. It will automatically perform the mapping.**
+|GWAS | dbSNP |	will mapped as |
+|----|----|--------|
+|`1`	|`chr1`	|`1`|
+|`1`	|`01`	|`1`|
+|`1`	|`NC_000001.11`	|`1`|
+|`chrX`	|`23`	|`X`|
+|`24`	|`chrY`	|`Y`|
+|`MT`	|`chrM`	|`MT`|
+|`MT`	|`NC_012920.1` |`MT`|
 ### 2️⃣ convert — Convert between GWAS formats
 
 Convert any GWAS summary file to formats required by:

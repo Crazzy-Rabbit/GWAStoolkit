@@ -75,3 +75,55 @@ void require(bool cond, const std::string& msg){
         exit(1);
     }
 }
+
+
+static inline bool starts_with(const std::string& s, const std::string& p){
+    return s.rfind(p, 0) == 0;
+}
+
+std::string canonical_chr(const std::string& raw){
+    std::string x = raw;
+    
+    // 去除回车键
+    x.erase(std::remove(x.begin(), x.end(), '\r'), x.end());
+    
+    // 同意大小写
+    for (auto& c : x) c = std::toupper(c);
+
+    // 去掉 CHR前缀
+    if (starts_with(x, "CHR"))
+        x = x.substr(3);
+
+    // RefSeq: NC_000001.11 -> 1
+    if (starts_with(x, "NC_")){
+        if (x.size() >= 9){
+            std::string num = x.substr(3, 6);
+
+            while (num.size() > 1 && num[0] == '0')
+                num.erase(0,1);
+
+            int chr = atoi(num.c_str());
+            if(1 <= chr && chr <= 22)
+                return std::to_string(chr);
+            if (chr == 23)
+                return "X";
+            if (chr == 24)
+                return "Y";
+            if (chr == 12920)
+                return "MT";
+        }
+    }
+    
+    // 去前导 0：01 → 1 
+    while (x.size() > 1 && x[0] == '0')
+        x.erase(0,1);
+
+    // 常用别名
+    if (x == "M" || x == "MT" || x == "MTDNA")
+        return "MT";
+
+    if (x == "23") return "X";
+    if (x == "24") return "Y";
+
+    return x;
+}

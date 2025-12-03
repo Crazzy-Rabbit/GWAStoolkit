@@ -140,7 +140,7 @@ void print_rsidimpu_help() {
     "Required dbSNP columns:\n"
     "  --dbchr  COL  Chromosome column      (default: CHR)\n"
     "  --dbpos  COL  Base position column   (default: POS)\n"
-    "  --dbrsid COL  rsid for SNP           (default: RSID)\n"
+    "  --dbrsid COL  rsid for SNP           (default: ID)\n"
     "  --dbA1   COL  REF allele             (default: REF)\n"
     "  --dbA2   COL  ALT allele             (default: ALT)\n\n" 
 
@@ -318,7 +318,7 @@ Args_RsidImpu parse_args_rsidimpu(int argc, char* argv[]) {
     if (args.count("--dbpos")) P.d_pos = args["--dbpos"]; else P.d_pos = "POS";
     if (args.count("--dbA1"))  P.d_A1  = args["--dbA1"];  else P.d_A1  = "REF";
     if (args.count("--dbA2"))  P.d_A2  = args["--dbA2"];  else P.d_A2  = "ALT";
-    if (args.count("--dbrsid"))P.d_rsid= args["--dbrsid"];else P.d_rsid= "RSID";
+    if (args.count("--dbrsid"))P.d_rsid= args["--dbrsid"];else P.d_rsid= "ID";
 
     return P;
 }

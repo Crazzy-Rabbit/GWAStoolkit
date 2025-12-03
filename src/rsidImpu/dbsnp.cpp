@@ -49,7 +49,8 @@ DBMap load_dbsnp(const Args_RsidImpu& P) {
 
         auto f = split(line);
 
-        string chr = norm_chr(f[dCHR]);
+        // string chr = norm_chr(f[dCHR]);
+        string chr = canonical_chr(f[dCHR]);
         string pos = f[dPOS];
         string a1  = f[dA1];
         string a2  = f[dA2];

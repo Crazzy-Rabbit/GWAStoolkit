@@ -106,7 +106,8 @@ void process_rsidImpu(const Args_RsidImpu& P,
 
         // chr-bucket DBMap
         // string key = make_key(f[gCHR], f[gPOS], f[gA1], f[gA2]);
-        string chr = norm_chr(f[gCHR]);
+        // string chr = norm_chr(f[gCHR]);
+        string chr = canonical_chr(f[gCHR]);
         string pos = f[gPOS];
         auto canon = canonical_alleles(f[gA1], f[gA2]);
         string key = pos + ":" + canon.first + ":" + canon.second;
