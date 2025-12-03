@@ -22,8 +22,7 @@
 
 using namespace std;
 
-void process_rsidImpu(const Args_RsidImpu& P,
-                    const DBMap& mapdb)
+void process_rsidImpu(const Args_RsidImpu& P)
 {
 
     deque<string> gwas_lines;
@@ -81,51 +80,62 @@ void process_rsidImpu(const Args_RsidImpu& P,
     } else {
         LOG_WARN("Cannot perform full QC in rsidImpu (missing beta/se/freq/N/p columns).");
     }
-    
+
+    // ================= 预分组 GWAS：chr -> index list =================
+    unordered_map<string, vector<size_t>> gwas_by_chr;
+    gwas_by_chr.reserve(50);
+
+    for (size_t i = 0; i < n; i++) {
+        auto f = split(gwas_lines[i]);
+        string chr = canonical_chr(f[gCHR]);
+        gwas_by_chr[chr].push_back(i);
+    }
+
     vector<bool>   keep(n,false);       // 是否最终进入主输出
     vector<string> rsid_vec(n);         // 匹配到的 rsID
 
     //================  匹配 dbSNP，确定哪些行有 rsid =================
-    for (size_t i=0; i<n; i++){
-        if (!keep_qc[i]) {
-            keep[i] = false;
-            continue;
-        }
-        
-        auto f = split(gwas_lines[i]);
+    // 固定人类染色体，也可以未来自动检测
+    vector<string> chromosomes = {
+        "1","2","3","4","5","6","7","8","9","10",
+        "11","12","13","14","15","16","17","18","19","20",
+        "21","22","X","Y","MT"
+    };
 
-        int max_col = gCHR;
-        if (gPOS > max_col) max_col = gPOS;
-        if (gA1  > max_col) max_col = gA1;
-        if (gA2  > max_col) max_col = gA2;
+    for (const auto& chr : chromosomes){
+        // 如果该染色体在 GWAS 中不存在，则跳过
+        auto it = gwas_by_chr.find(chr);
+        if (it == gwas_by_chr.end()) continue;
 
-        if ((int)f.size() <= max_col) {
-            keep[i] = false;
-            continue;
-        }
+        //--- Streaming 加载 dbSNP 对应染色体 ---
+        ChrMap chrdb = streaming_load_chr(P, chr);
+        //--- 对该染色体的 GWAS SNP 进行匹配 ---
+        for (size_t idx : it->second) {
 
-        // chr-bucket DBMap
-        // string key = make_key(f[gCHR], f[gPOS], f[gA1], f[gA2]);
-        // string chr = norm_chr(f[gCHR]);
-        string chr = canonical_chr(f[gCHR]);
-        string pos = f[gPOS];
-        auto canon = canonical_alleles(f[gA1], f[gA2]);
-        string key = pos + ":" + canon.first + ":" + canon.second;
-
-        auto it_chr = mapdb.find(chr);
-        if (it_chr != mapdb.end()) {
-            auto it = it_chr->second.find(key);
-            if (it != it_chr->second.end()) {
-                keep[i] = true;             // 只有匹配到 rsID 的才保留
-                rsid_vec[i] = it->second;
-            } else {
-                keep[i] = false;
+            if (!keep_qc[idx]) {
+                keep[idx] = false;
+                continue;
             }
-        } else {
-            keep[i] = false;
+
+            auto f = split(gwas_lines[idx]);
+
+            string pos = f[gPOS];
+            auto canon = canonical_alleles(f[gA1], f[gA2]);
+            string key = pos + ":" + canon.first + ":" + canon.second;
+
+            auto hit = chrdb.find(key);
+            if (hit != chrdb.end()) {
+                keep[idx] = true;
+                rsid_vec[idx] = hit->second;
+            } else {
+                keep[idx] = false;
+            }
         }
+        //--- 释放这条染色体的 dbSNP 内存 ---
+        chrdb.clear();
+        chrdb.rehash(0);
     }
-    
+
     if (P.remove_dup_snp) {
         gwas_remove_dup(
             gwas_lines,

@@ -14,11 +14,14 @@
 #include <unordered_map>
 #include <string>
 
-// std::unordered_map<std::string,std::string>
-using DBMap = std::unordered_map<
-    std::string,
-    std::unordered_map<std::string, std::string>
->;
-DBMap load_dbsnp(const Args_RsidImpu& P);
+using ChrMap = std::unordered_map<std::string, std::string>;
+/**
+ * Streaming-load dbSNP: only load the specified chromosome.
+ * 
+ * @param P     Args_RsidImpu parameters
+ * @param CHR   canonical chromosome name ("1","2","X","Y","MT")
+ * @return      unordered_map<key -> rsid>
+ */
+ChrMap streaming_load_chr(const Args_RsidImpu& P, const std::string& CHR);
 
 #endif

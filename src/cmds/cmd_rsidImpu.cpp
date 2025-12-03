@@ -12,10 +12,7 @@ int cmd_rsidImpu(int argc, char* argv[]){
     timer.setTime();
 
     LOG_INFO("Running rsidImpu ... ");
-
-    auto db = load_dbsnp(P);
-    process_rsidImpu(P, db);
-
+    process_rsidImpu(P);
     LOG_INFO("rsidImpu finished.");
     return 0;
 }
