@@ -119,7 +119,7 @@ void run_or2beta(const Args_Or2Beta& P){
         auto f = split(ln);
 
         // ★ 检查列数是否与 header 一致，否则跳过
-        if ((int)f.size() != (int)heaer.size()) continue;
+        if ((int)f.size() != (int)header.size()) continue;
         if (f[idx_snp].empty()) continue;  
 
         if ((int)f.size() <= idx_or) continue;
