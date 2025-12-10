@@ -19,8 +19,20 @@
 #include <iostream>
 #include <algorithm>
 #include <deque>
+#include <vector>
 
 using namespace std;
+
+// 结构体：保存排序后的 GWAS 信息（不改变原始行顺序）
+struct GWASRecord {
+    size_t index;         // 原始在 gwas_lines 中的下标
+    string chr;           // 规范化后的染色体
+    long long pos;        // 位置
+    string a1;            // 原始 A1
+    string a2;            // 原始 A2
+    string canon_a1;      // 规范化后的 A1
+    string canon_a2;      // 规范化后的 A2
+};
 
 void process_rsidImpu(const Args_RsidImpu& P)
 {
@@ -37,6 +49,21 @@ void process_rsidImpu(const Args_RsidImpu& P)
 
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     auto header = split(line);
+
+    // chech exist of SNP col
+    bool has_SNP = false;
+    int idx_SNP  = -1;
+
+    for (size_t i = 0; i < header.size(); i++){
+        string hlow = header[i];
+        std::transform(hlow.begin(), hlow.end(), hlow.begin(), ::tolower);
+
+        if (hlow == "snp"){
+            has_SNP = true;
+            idx_SNP = i;
+            break;
+        }
+    }
     
     // find the col, CHR, POS, A1, A2, P 列
     int gCHR     = find_col(header, P.g_chr); 
@@ -81,61 +108,144 @@ void process_rsidImpu(const Args_RsidImpu& P)
         LOG_WARN("Cannot perform full QC in rsidImpu (missing beta/se/freq/N/p columns).");
     }
 
-    // ================= 预分组 GWAS：chr -> index list =================
-    unordered_map<string, vector<size_t>> gwas_by_chr;
-    gwas_by_chr.reserve(50);
+    //================ 构建排序用的 GWASRecord 向量 =================
+    vector<GWASRecord> gwas_vec;
+    gwas_vec.reserve(n);
 
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; ++i){
         auto f = split(gwas_lines[i]);
-        string chr = canonical_chr(f[gCHR]);
-        gwas_by_chr[chr].push_back(i);
+
+        GWASRecord rec;
+        rec.index = i;
+        rec.chr   = canonical_chr(f[gCHR]);
+        rec.pos   = std::stoll(f[gPOS]);
+        rec.a1    = f[gA1];
+        rec.a2    = f[gA2];
+
+        auto canon   = canonical_alleles(rec.a1, rec.a2);
+        rec.canon_a1 = canon.first;
+        rec.canon_a2 = canon.second;
+
+        gwas_vec.push_back(std::move(rec));
     }
 
-    vector<bool>   keep(n,false);       // 是否最终进入主输出
-    vector<string> rsid_vec(n);         // 匹配到的 rsID
-
-    //================  匹配 dbSNP，确定哪些行有 rsid =================
-    // 固定人类染色体，也可以未来自动检测
-    vector<string> chromosomes = {
-        "1","2","3","4","5","6","7","8","9","10",
-        "11","12","13","14","15","16","17","18","19","20",
-        "21","22","X","Y","MT"
-    };
-
-    for (const auto& chr : chromosomes){
-        // 如果该染色体在 GWAS 中不存在，则跳过
-        auto it = gwas_by_chr.find(chr);
-        if (it == gwas_by_chr.end()) continue;
-
-        //--- Streaming 加载 dbSNP 对应染色体 ---
-        ChrMap chrdb = streaming_load_chr(P, chr);
-        //--- 对该染色体的 GWAS SNP 进行匹配 ---
-        for (size_t idx : it->second) {
-
-            if (!keep_qc[idx]) {
-                keep[idx] = false;
-                continue;
-            }
-
-            auto f = split(gwas_lines[idx]);
-
-            string pos = f[gPOS];
-            auto canon = canonical_alleles(f[gA1], f[gA2]);
-            string key = pos + ":" + canon.first + ":" + canon.second;
-
-            auto hit = chrdb.find(key);
-            if (hit != chrdb.end()) {
-                keep[idx] = true;
-                rsid_vec[idx] = hit->second;
-            } else {
-                keep[idx] = false;
-            }
+    // 按 chr, pos 排序（稳定排序）
+    std::stable_sort(gwas_vec.begin(), gwas_vec.end(),
+        [](const GWASRecord& a, const GWASRecord& b){
+            if (a.chr != b.chr) return a.chr < b.chr;
+            return a.pos < b.pos;
         }
-        //--- 释放这条染色体的 dbSNP 内存 ---
-        chrdb.clear();
-        chrdb.rehash(0);
+    );
+
+    LOG_INFO("GWAS records sorted by CHR:POS for two-pointer matching.");
+
+    //================ 准备匹配结果容器 =================
+    vector<bool>   keep(n, false);   // 是否最终进入主输出
+    vector<string> rsid_vec(n);      // 匹配到的 rsID
+
+    //================ 单通扫描 dbSNP（Two-pointer merge） =================
+    LineReader dbr(P.dbsnp_file);
+    string dline;
+
+    bool is_bim = ends_with(P.dbsnp_file, ".bim") ||
+                    ends_with(P.dbsnp_file, ".bim.gz");
+
+    int dCHR, dPOS, dA1, dA2, dRS;
+    vector<string> dhdr;
+
+    if (!is_bim) {
+        // 有 header 的一般表格格式
+        if (!dbr.getline(dline)) {
+            LOG_ERROR("Empty dbSNP file.");
+            exit(1);
+        }
+        dhdr = split(dline);
+
+        dCHR = find_col(dhdr, P.d_chr);
+        dPOS = find_col(dhdr, P.d_pos);
+        dA1  = find_col(dhdr, P.d_A1);
+        dA2  = find_col(dhdr, P.d_A2);
+        dRS  = find_col(dhdr, P.d_rsid);
+
+        if (dCHR<0 || dPOS<0 || dA1<0 || dA2<0 || dRS<0){
+            LOG_ERROR("dbSNP header incomplete.");
+            exit(1);
+        }
+    } else {
+        // .bim / .bim.gz 格式：CHR RSID CM POS A1 A2
+        dCHR = 0; dRS = 1; dPOS = 3; dA1 = 4; dA2 = 5;
     }
 
+    LOG_INFO("Start two-pointer merge between GWAS and dbSNP.");
+
+    size_t gi = 0;
+    const size_t Gn = gwas_vec.size();
+    size_t scanned = 0;
+
+    while (dbr.getline(dline)){
+        if (dline.empty()) continue;
+        auto f = split(dline);
+
+        string dchr = canonical_chr(f[gCHR]);
+        long long dpos = std::stoll(f[dPOS]);
+
+        // 推进 GWAS 指针：直到 gwas_chr:pos >= dbsnp_chr:pos
+        while (gi < Gn && 
+                (gwas_vec[gi].chr < dchr ||
+                (gwas_vec[gi].chr == dchr && gwas_vec[gi].pos < dpos))) {
+            ++gi;
+        }
+
+        if (gi >= Gn) break;
+
+        // 如果 chr 不同，继续读 dbSNP
+        if (gwas_vec[gi].chr > dchr) {
+            continue;
+        }
+
+        // 现在有两种可能：
+        // 1) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos == dpos → 候选匹配
+        // 2) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos > dpos → 说明 dbSNP 这行在 GWAS 中不存在该 pos，继续读下一行 dbSNP
+        if (!(gwas_vec[gi].chr == dchr && gwas_vec[gi].pos == dpos)) {
+            continue;
+        }
+
+        // 等位基因规范化
+        auto canon_db = canonical_alleles(f[dA1], f[dA2]);
+        const string& db_a1 = canon_db.first;
+        const string& db_a2 = canon_db.second;
+        const string& rsid  = f[dRS];
+
+        // 可能有多个 GWAS 行在同一 chr:pos（或者多个 dbSNP 行同一 chr:pos）
+        // 对所有该位置的 GWAS 进行尝试匹配
+        size_t gj = gi;
+        while (gj < Gn &&
+                gwas_vec[gj].chr == dchr &&
+                gwas_vec[gj].pos == dpos) {
+
+            size_t orig_idx = gwas_vec[gj].index;
+
+            // QC 未通过的行不做 rsID 匹配，但仍保留为 keep=false（之后输出到 unmatch）
+            if (keep_qc[orig_idx]) {
+                if (gwas_vec[gj].canon_a1 == db_a1 &&
+                    gwas_vec[gj].canon_a2 == db_a2) {
+                    // 找到匹配
+                    keep[orig_idx]     = true;
+                    rsid_vec[orig_idx] = rsid;
+                }
+            }
+            ++gj;
+        }
+
+        ++scanned;
+        if(scanned % 1000000 == 0){
+            LOG_INFO("[dbSNP two-pointer] scanned " + std::to_string(scanned/1000000) + "M lines.");
+        }
+    }
+
+    LOG_INFO("Two-pointer merge finished. dbSNP lines scanned: " + std::to_string(scanned));
+
+    //================ 去重（按 rsID / P 值） =================
     if (P.remove_dup_snp) {
         gwas_remove_dup(
             gwas_lines,
@@ -168,6 +278,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
     
     FormatEngine FE;
     FormatSpec spec = FE.get_format(P.format);
+
     // header
     if (P.format == "gwas") {
         // 原始 header + SNP
@@ -176,7 +287,9 @@ void process_rsidImpu(const Args_RsidImpu& P)
             if (j) h += "\t";
             h += header[j];
         }
-        h += "\tSNP";
+        if (!has_SNP){
+            h += "\tSNP";
+        }
         fout.write_line(h);
     } else {
         // 格式化 header
@@ -204,7 +317,24 @@ void process_rsidImpu(const Args_RsidImpu& P)
         auto f = split(gwas_lines[i]);
 
         if (P.format == "gwas") {
-            fout.write_line(gwas_lines[i] + "\t" + rsid_vec[i]);
+            if (has_SNP){
+                // ★ 覆盖原 N
+                if (idx_SNP < (int)f.size()){
+                    f[idx_SNP] = rsid_vec[i];
+                }
+                // 重建一行
+                string out;
+                for (size_t j=0; j<f.size(); j++){
+                    if (j) out +="\t";
+                    out += f[j];
+                }
+                fout.write_line(out);
+            } else {
+                // ★ 原来没有 SNP → 追加
+                string out = gwas_lines[i] + "\t" + rsid_vec[i];
+                fout.write_line(out);
+            }
+            
             continue;
         }
 
