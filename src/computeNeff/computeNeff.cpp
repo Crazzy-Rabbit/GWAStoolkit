@@ -65,6 +65,20 @@ void run_computeNeff(const Args_CalNeff& P)
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
     auto header = split(line);
 
+    bool has_N = false;
+    int idx_N  = -1;
+
+    for (size_t i = 0; i < header.size(); i++){
+        string hlow = header[i];
+        std::transform(hlow.begin(), hlow.end(), hlow.begin(), ::tolower);
+
+        if (hlow == "n"){
+            has_N = true;
+            idx_N = i;
+            break;
+        }
+    }
+
     // header check
     int idx_snp = find_col(header, P.col_SNP);
     require(idx_snp >= 0, "GWAS missing required column [" + P.col_SNP + "] for computeNeff.");
@@ -165,6 +179,10 @@ void run_computeNeff(const Args_CalNeff& P)
             if (i) h += "\t";
             h += header[i];
         }
+
+        if (!has_N){
+            h += "\tN";
+        }
         fout.write_line(h);
     } else {
         string h;
@@ -183,6 +201,10 @@ void run_computeNeff(const Args_CalNeff& P)
         ln.erase(remove(ln.begin(), ln.end(), '\r'), ln.end());
         auto f = split(ln);
 
+        // ★ 检查列数是否与 header 一致，否则跳过
+        if ((int)f.size() != (int)header.size()) continue;
+        if (f[idx_snp].empty()) continue;  
+
         // 计算当前 SNP 的 Neff
         double Neff = NAN;
         if (P.is_single){
@@ -197,7 +219,25 @@ void run_computeNeff(const Args_CalNeff& P)
         if (!std::isfinite(Neff) || Neff <= 0.0) continue;
 
         if (P.format == "gwas"){
-            fout.write_line(ln);
+            auto f = split(ln);
+
+            if (has_N){
+                // ★ 覆盖原 N
+                if (idx_N < (int)f.size()){
+                    f[idx_N] = std::to_string(Neff);
+                }
+                // 重建一行
+                string out;
+                for (size_t j=0; j<f.size(); j++){
+                    if (j) out +="\t";
+                    out += f[j];
+                }
+                fout.write_line(out);
+            } else {
+                // ★ 原来没有 N → 追加
+                string out = ln + "\t" + std::to_string(Neff);
+                fout.write_line(out);
+            }
             continue;
         }
 

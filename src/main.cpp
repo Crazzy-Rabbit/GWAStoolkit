@@ -76,6 +76,8 @@ int main(int argc, char* argv[]) {
     // Timer
     Gadget::Timer timer;
     timer.setTime();
+    
+    LOG_INFO(string("Analysis started: ") + timer.getDate());
 
     int ret = 0;
     if (cmd == "rsidImpu") {
@@ -95,6 +97,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    LOG_INFO("Total runtime: " + timer.format(timer.getElapse()));
+    timer.getTime();
+    LOG_INFO(string("Analysis finished: ") + timer.getDate());
+    LOG_INFO(string("Total runtime: ") + timer.format(timer.getElapse()));
     return ret;
 }

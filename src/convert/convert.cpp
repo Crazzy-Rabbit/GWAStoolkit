@@ -118,6 +118,10 @@ void run_convert(const Args_Convert& P){
         lines[i].erase(remove(lines[i].begin(), lines[i].end(), '\r'), lines[i].end());
         auto f = split(lines[i]);
 
+        // ★ 检查列数是否与 header 一致，否则跳过
+        if ((int)f.size() != (int)header.size()) continue;
+        if (f[idx_snp].empty()) continue;  
+
         if (P.format == "gwas"){
             fout.write_line(lines[i]);
             continue;
