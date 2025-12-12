@@ -230,9 +230,15 @@ void process_rsidImpu(const Args_RsidImpu& P)
             if (keep_qc[orig_idx]) {
                 if (gwas_vec[gj].canon_a1 == db_a1 &&
                     gwas_vec[gj].canon_a2 == db_a2) {
-                    // 找到匹配
+                    // 正向匹配
                     keep[orig_idx]     = true;
                     rsid_vec[orig_idx] = rsid;
+                }else if(gwas_vec[gj].canon_a1 == db_a2 &&
+                        gwas_vec[gj].canon_a2 == db_a1){
+                    // 反向匹配
+                    keep[orig_idx]     = true;
+                    rsid_vec[orig_idx] = rsid;
+
                 }
             }
             ++gj;
