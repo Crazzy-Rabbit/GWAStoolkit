@@ -233,7 +233,7 @@ void run_computeNeff(const Args_CalNeff& P)
                     out += f[j];
                 }
                 fout.write_line(out);
-            } else {tongs
+            } else {
                 // ★ 原来没有 N → 追加
                 string out = ln + "\t" + std::to_string(Neff);
                 fout.write_line(out);
