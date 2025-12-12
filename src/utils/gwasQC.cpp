@@ -53,7 +53,7 @@ void gwas_basic_qc(
             if (idx < 0) return true;                 // 列不存在 → 忽略
             if (idx >= (int)f.size()) return false;   // 需要列但越界 → fail
             return parse_num(f[idx], val);            // 解析失败 → fail
-        } 
+        };
 
         double v_beta = 0, v_se = 0, v_freq = 0, v_p = 0, v_n = 0;
 
