@@ -186,7 +186,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
         if (dline.empty()) continue;
         auto f = split(dline);
 
-        string dchr = canonical_chr(f[gCHR]);
+        string dchr = canonical_chr(f[dCHR]);
         long long dpos = std::stoll(f[dPOS]);
 
         // 推进 GWAS 指针：直到 gwas_chr:pos >= dbsnp_chr:pos
