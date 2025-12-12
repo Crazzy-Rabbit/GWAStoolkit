@@ -61,12 +61,20 @@ void run_or2beta(const Args_Or2Beta& P){
     // ======================= QC =======================
     vector<bool> keep(n, true);
 
-    bool can_qc = (idx_freq>=0 && idx_p>=0 && idx_n>=0);
+    bool can_qc = (idx_freq>=0 || idx_p>=0 || idx_n>=0);
     if (can_qc) {
-        gwas_basic_qc(lines, header, 
-            -1, idx_se, idx_freq, idx_p, idx_n,
+        LOG_INFO("QC applied in partial-column mode.");
+        gwas_basic_qc(
+            lines,
+            header,
+            -1,        // 不 QC beta
+            idx_se,    // se 可选
+            idx_freq,  // freq 可选
+            idx_p,     // p 可选
+            idx_n,     // N 可选
             keep,
-            P.maf_threshold);
+            P.maf_threshold
+        );
     } else {
         LOG_WARN("QC not fully applied: missing freq/p/N columns.");
     }

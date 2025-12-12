@@ -63,8 +63,9 @@ void run_convert(const Args_Convert& P){
     // QC, default maf = 0.01
     vector<bool> keep(n,true);
     // 如果列都存在，就执行QC，否则给warning
-    bool can_qc = (idx_beta>=0 && idx_se>=0 && idx_freq>=0 && idx_p>=0 && idx_n>=0);
+    bool can_qc = (idx_beta>=0 || idx_se>=0 || idx_freq>=0 || idx_p>=0 || idx_n>=0);
     if (can_qc) {
+        LOG_INFO("QC applied in partial-column mode.");
         gwas_basic_qc(lines, header,
                     idx_beta, idx_se, idx_freq, idx_p, idx_n,
                     keep, P.maf_threshold);

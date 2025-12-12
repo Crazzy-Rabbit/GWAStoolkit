@@ -97,12 +97,13 @@ void process_rsidImpu(const Args_RsidImpu& P)
     vector<bool> keep_qc(n, true);
     double maf   = P.maf_threshold;
 
-    bool can_qc = (idx_beta >= 0 &&
-                idx_se   >= 0 &&
-                idx_freq >= 0 &&
-                idx_pv   >= 0 &&
+    bool can_qc = (idx_beta >= 0 ||
+                idx_se   >= 0 ||
+                idx_freq >= 0 ||
+                idx_pv   >= 0 ||
                 idx_n    >= 0);
     if (can_qc) {
+        LOG_INFO("QC applied in partial-column mode.");
         gwas_basic_qc(gwas_lines, header, idx_beta, idx_se, idx_freq, idx_pv, idx_n, keep_qc, maf);
     } else {
         LOG_WARN("Cannot perform full QC in rsidImpu (missing beta/se/freq/N/p columns).");

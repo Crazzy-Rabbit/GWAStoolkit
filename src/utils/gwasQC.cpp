@@ -47,36 +47,39 @@ void gwas_basic_qc(
         ln.erase(remove(ln.begin(), ln.end(), '\r'), ln.end());
         auto f = split(ln);
 
-        int maxCol = idx_beta;
-        maxCol = max(maxCol, idx_se);
-        maxCol = max(maxCol, idx_freq);
-        maxCol = max(maxCol, idx_p);
-        maxCol = max(maxCol, idx_n);
+        bool qc_fail = false;
+        
+        auto read_col = [&](int idx, double &val) -> bool {
+            if (idx < 0) return true;                 // 列不存在 → 忽略
+            if (idx >= (int)f.size()) return false;   // 需要列但越界 → fail
+            return parse_num(f[idx], val);            // 解析失败 → fail
+        } 
 
-        if ((int)f.size() <= maxCol) {
-            keep[i] = false; dropped++; continue;
+        double v_beta = 0, v_se = 0, v_freq = 0, v_p = 0, v_n = 0;
+
+        if (!read_col(idx_beta, v_beta)) qc_fail = true;
+        if (!read_col(idx_se,   v_se))   qc_fail = true;
+        if (!read_col(idx_freq, v_freq)) qc_fail = true;
+        if (!read_col(idx_p,    v_p))    qc_fail = true;
+        if (!read_col(idx_n,    v_n))    qc_fail = true;
+
+        if (qc_fail) {
+            keep[i] = false; dropped++;
+            continue;
         }
 
-        double v_beta, v_se, v_freq, v_p, v_n;
-
-        bool ok = 
-            parse_num(f[idx_beta], v_beta) &&
-            parse_num(f[idx_se],   v_se)   &&
-            parse_num(f[idx_freq], v_freq) &&
-            parse_num(f[idx_p],    v_p)    &&
-            parse_num(f[idx_n],    v_n);
-        
-        // not finite
-        if (!ok) { keep[i] = false; dropped++; continue; }
-        
-        // p (0, 1)
-        if (v_p < 0.0 || v_p > 1.0) {
-            keep[i] = false; dropped++; continue;
+        // p ∈ [0,1]
+        if (idx_p >= 0) {
+            if (v_p < 0.0 || v_p > 1.0){
+                keep[i] = false; dropped++; continue;
+            }
         }
 
-        // MAF filter
-        if (v_freq < maf_threshold || v_freq > (1.0 - maf_threshold)) {
-            keep[i]=false; dropped++; continue;
+        // MAF
+        if (idx_freq >= 0) {
+            if (v_freq < maf_threshold || v_freq > (1.0 - maf_threshold)) {
+                keep[i] = false; dropped++; continue;
+            }
         }
 
         kept++;

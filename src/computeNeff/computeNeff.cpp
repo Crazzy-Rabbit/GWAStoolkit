@@ -147,10 +147,11 @@ void run_computeNeff(const Args_CalNeff& P)
     vector<bool> keep(n, true);
     int idx_n = -1;
     
-    bool can_qc = (idx_beta>=0 && idx_se>=0 && idx_freq>=0 && idx_p>=0);
+    bool can_qc = (idx_beta>=0 || idx_se>=0 || idx_freq>=0 || idx_p>=0);
     if (can_qc){
         int idx_n_safe = (idx_n >= 0 ? idx_n : idx_freq); 
-
+        
+        LOG_INFO("QC applied in partial-column mode.");
         gwas_basic_qc(lines, header,
                     idx_beta, idx_se, idx_freq, idx_p, idx_n_safe,
                     keep, P.maf_threshold);
