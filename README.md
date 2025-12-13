@@ -171,12 +171,33 @@ GWAStoolkit --help
 Basic:
 
 ```
-GWAStoolkit rsidImpu \
-  --gwas-summary gwas.txt.gz \
-  --dbsnp dbsnp.txt.gz \
-  --dbchr CHR --dbpos POS --dbA1 A1 --dbA2 A2 --dbrsid RSID \
-  --chr CHR --pos POS --A1 A1 --A2 A2 --beta beta --se se --freq freq --pval p \
-  --out gwas.rsid.txt.gz
+GWAStoolkit=/public/home/shilulu/script/GWAStoolkit/GWAStoolkit
+gwas=/public/home/shilulu/yqyan/0_txt/All_2019_CHEESE_BBJ_autosome_Pcorrected.txt
+dbSNP=/public/home/shilulu/Wulab/dbSNP/GRCH37.dbSNP157.txt
+out=/public/home/shilulu/yqyan/0_txt/rsID/CHEESE_BBJ_annotated.txt.gz
+logfile=/public/home/shilulu/yqyan/0_txt/rsID/CHEESE_BBJ_annotate.log
+
+cmd="$GWAStoolkit rsidImpu \
+--gwas-summary $gwas  \
+--dbsnp $dbSNP \
+--dbchr CHROM \
+--dbpos POS \
+--dbA1 REF \
+--dbA2 ALT \
+--dbrsid ID \
+--chr CHR \
+--pos POS \
+--A1 A1 \
+--A2 A2 \
+--beta BETA \
+--se SE \
+--freq A1Frq \
+--pval P \
+--out $out \
+--log $logfile \
+--threads 10"
+
+qsubshcom "$cmd" 10 100G rsid_annot 02:00:00 ""
 ```
 
 With specific output format:

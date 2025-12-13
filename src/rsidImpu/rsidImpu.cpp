@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <deque>
 #include <vector>
+#include <unordered_map>
 
 using namespace std;
 
@@ -33,6 +34,18 @@ struct GWASRecord {
     string canon_a1;      // 规范化后的 A1
     string canon_a2;      // 规范化后的 A2
 };
+
+/* ============================================================
+ *  NEW: 染色体顺序编码（two-pointer 的数学前提）
+ * ============================================================ */
+inline int chr_code(const string& chr)
+{
+    // chr 已经过 canonical_chr()
+    if (chr == "X")  return 23;
+    if (chr == "Y")  return 24;
+    if (chr == "MT") return 25;
+    return std::stoi(chr);   // autosome
+}
 
 void process_rsidImpu(const Args_RsidImpu& P)
 {
@@ -133,7 +146,9 @@ void process_rsidImpu(const Args_RsidImpu& P)
     // 按 chr, pos 排序（稳定排序）
     std::stable_sort(gwas_vec.begin(), gwas_vec.end(),
         [](const GWASRecord& a, const GWASRecord& b){
-            if (a.chr != b.chr) return a.chr < b.chr;
+            int ca = chr_code(a.chr);
+            int cb = chr_code(b.chr);
+            if (ca != cb) return ca < cb;
             return a.pos < b.pos;
         }
     );
@@ -161,7 +176,6 @@ void process_rsidImpu(const Args_RsidImpu& P)
             exit(1);
         }
         dhdr = split(dline);
-
         dCHR = find_col(dhdr, P.d_chr);
         dPOS = find_col(dhdr, P.d_pos);
         dA1  = find_col(dhdr, P.d_A1);
@@ -179,8 +193,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
 
     LOG_INFO("Start two-pointer merge between GWAS and dbSNP.");
 
-    size_t gi = 0;
-    const size_t Gn = gwas_vec.size();
+    size_t gi = 0, Gn = gwas_vec.size();
     size_t scanned = 0;
 
     while (dbr.getline(dline)){
@@ -189,27 +202,22 @@ void process_rsidImpu(const Args_RsidImpu& P)
 
         string dchr = canonical_chr(f[dCHR]);
         long long dpos = std::stoll(f[dPOS]);
+        int dchr_c = chr_code(dchr);
 
         // 推进 GWAS 指针：直到 gwas_chr:pos >= dbsnp_chr:pos
-        while (gi < Gn && 
-                (gwas_vec[gi].chr < dchr ||
-                (gwas_vec[gi].chr == dchr && gwas_vec[gi].pos < dpos))) {
-            ++gi;
+        while (gi < Gn) {
+            int gchr_c = chr_code(gwas_vec[gi].chr);
+            if (gchr_c < dchr_c || (gchr_c == dchr_c && gwas_vec[gi].pos < dpos))
+                ++gi;
+            else break;
         }
 
         if (gi >= Gn) break;
-
-        // 如果 chr 不同，继续读 dbSNP
-        if (gwas_vec[gi].chr > dchr) {
-            continue;
-        }
-
         // 现在有两种可能：
         // 1) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos == dpos → 候选匹配
         // 2) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos > dpos → 说明 dbSNP 这行在 GWAS 中不存在该 pos，继续读下一行 dbSNP
-        if (!(gwas_vec[gi].chr == dchr && gwas_vec[gi].pos == dpos)) {
-            continue;
-        }
+        if (chr_code(gwas_vec[gi].chr)  > dchr_c) continue;
+        if (gwas_vec[gi].pos != dpos) continue;
 
         // 等位基因规范化
         auto canon_db = canonical_alleles(f[dA1], f[dA2]);
@@ -220,25 +228,20 @@ void process_rsidImpu(const Args_RsidImpu& P)
         // 可能有多个 GWAS 行在同一 chr:pos（或者多个 dbSNP 行同一 chr:pos）
         // 对所有该位置的 GWAS 进行尝试匹配
         size_t gj = gi;
-        while (gj < Gn &&
-                gwas_vec[gj].chr == dchr &&
-                gwas_vec[gj].pos == dpos) {
-
+        while (gj < Gn && 
+            chr_code(gwas_vec[gj].chr) == dchr_c &&
+            gwas_vec[gj].pos == dpos) {
             size_t orig_idx = gwas_vec[gj].index;
 
             // QC 未通过的行不做 rsID 匹配，但仍保留为 keep=false（之后输出到 unmatch）
             if (keep_qc[orig_idx]) {
-                if (gwas_vec[gj].canon_a1 == db_a1 &&
-                    gwas_vec[gj].canon_a2 == db_a2) {
-                    // 正向匹配
+                if ((gwas_vec[gj].canon_a1 == db_a1 &&
+                    gwas_vec[gj].canon_a2 == db_a2) ||
+                    (gwas_vec[gj].canon_a1 == db_a2 &&
+                    gwas_vec[gj].canon_a2 == db_a1)){
+                    // 正向匹配 || 反向匹配
                     keep[orig_idx]     = true;
                     rsid_vec[orig_idx] = rsid;
-                }else if(gwas_vec[gj].canon_a1 == db_a2 &&
-                        gwas_vec[gj].canon_a2 == db_a1){
-                    // 反向匹配
-                    keep[orig_idx]     = true;
-                    rsid_vec[orig_idx] = rsid;
-
                 }
             }
             ++gj;
