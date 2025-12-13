@@ -13,7 +13,6 @@
 #include "utils/FormatEngine.hpp"
 #include "rsidImpu/rsidImpu.hpp"
 #include "rsidImpu/allele.hpp"
-#include "rsidImpu/dbsnp.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -24,32 +23,19 @@
 
 using namespace std;
 
-// 结构体：保存排序后的 GWAS 信息（不改变原始行顺序）
-struct GWASRecord {
-    size_t index;         // 原始在 gwas_lines 中的下标
-    string chr;           // 规范化后的染色体
-    long long pos;        // 位置
-    string a1;            // 原始 A1
-    string a2;            // 原始 A2
-    string canon_a1;      // 规范化后的 A1
-    string canon_a2;      // 规范化后的 A2
-};
+// =======================================================
+// GWAS minimal record for merge
+// =======================================================
 
-/* ============================================================
- *  NEW: 染色体顺序编码（two-pointer 的数学前提）
- * ============================================================ */
-inline int chr_code(const string& chr)
-{
-    // chr 已经过 canonical_chr()
-    if (chr == "X")  return 23;
-    if (chr == "Y")  return 24;
-    if (chr == "MT") return 25;
-    return std::stoi(chr);   // autosome
-}
+struct GWASRecord {
+    size_t    index;     // original line index
+    int       chr;       // chr_code
+    int64_t   pos;
+    AlleleKey allele;
+};
 
 void process_rsidImpu(const Args_RsidImpu& P)
 {
-
     deque<string> gwas_lines;
     string line;
     
@@ -129,26 +115,28 @@ void process_rsidImpu(const Args_RsidImpu& P)
     for (size_t i = 0; i < n; ++i){
         auto f = split(gwas_lines[i]);
 
+        int chr = canonical_chr_code(f[gCHR]);
+        if (chr < 0) continue;
+
+        int64_t pos = std::strtoll(f[gPOS].c_str(), nullptr, 10);
+        if (pos <= 0) continue;
+
+        AlleleKey ak = make_allele_key(f[gA1], f[gA2]);
+        if (ak.type == 2) continue;
+
         GWASRecord rec;
-        rec.index = i;
-        rec.chr   = canonical_chr(f[gCHR]);
-        rec.pos   = std::stoll(f[gPOS]);
-        rec.a1    = f[gA1];
-        rec.a2    = f[gA2];
+        rec.index  = i;
+        rec.chr    = chr;
+        rec.pos    = pos;
+        rec.allele = ak;
 
-        auto canon   = canonical_alleles(rec.a1, rec.a2);
-        rec.canon_a1 = canon.first;
-        rec.canon_a2 = canon.second;
-
-        gwas_vec.push_back(std::move(rec));
+        gwas_vec.push_back(rec);
     }
 
     // 按 chr, pos 排序（稳定排序）
     std::stable_sort(gwas_vec.begin(), gwas_vec.end(),
         [](const GWASRecord& a, const GWASRecord& b){
-            int ca = chr_code(a.chr);
-            int cb = chr_code(b.chr);
-            if (ca != cb) return ca < cb;
+            if (a.chr != b.chr) return a.chr < b.chr;
             return a.pos < b.pos;
         }
     );
@@ -200,49 +188,45 @@ void process_rsidImpu(const Args_RsidImpu& P)
         if (dline.empty()) continue;
         auto f = split(dline);
 
-        string dchr = canonical_chr(f[dCHR]);
-        long long dpos = std::stoll(f[dPOS]);
-        int dchr_c = chr_code(dchr);
+        int dchr = canonical_chr_code(f[dCHR]);
+        if (dchr < 0) continue;
+
+        int64_t dpos = std::strtoll(f[dPOS].c_str(), nullptr, 10);
 
         // 推进 GWAS 指针：直到 gwas_chr:pos >= dbsnp_chr:pos
-        while (gi < Gn) {
-            int gchr_c = chr_code(gwas_vec[gi].chr);
-            if (gchr_c < dchr_c || (gchr_c == dchr_c && gwas_vec[gi].pos < dpos))
-                ++gi;
-            else break;
+        while (gi < Gn &&
+            (gwas_vec[gi].chr < dchr ||
+            (gwas_vec[gi].chr == dchr && gwas_vec[gi].pos < dpos))) {
+            ++gi;
         }
 
         if (gi >= Gn) break;
         // 现在有两种可能：
         // 1) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos == dpos → 候选匹配
         // 2) gwas_vec[gi].chr == dchr && gwas_vec[gi].pos > dpos → 说明 dbSNP 这行在 GWAS 中不存在该 pos，继续读下一行 dbSNP
-        if (chr_code(gwas_vec[gi].chr)  > dchr_c) continue;
-        if (gwas_vec[gi].pos != dpos) continue;
+        if (gwas_vec[gi].chr != dchr || gwas_vec[gi].pos != dpos) continue;
 
         // 等位基因规范化
-        auto canon_db = canonical_alleles(f[dA1], f[dA2]);
-        const string& db_a1 = canon_db.first;
-        const string& db_a2 = canon_db.second;
-        const string& rsid  = f[dRS];
+        AlleleKey db_allele = make_allele_key(f[dA1], f[dA2]);
+        if (db_allele.type == 2) continue;
 
+        const string& rsid = f[dRS];
         // 可能有多个 GWAS 行在同一 chr:pos（或者多个 dbSNP 行同一 chr:pos）
         // 对所有该位置的 GWAS 进行尝试匹配
         size_t gj = gi;
         while (gj < Gn && 
-            chr_code(gwas_vec[gj].chr) == dchr_c &&
+            gwas_vec[gj].chr == dchr &&
             gwas_vec[gj].pos == dpos) {
-            size_t orig_idx = gwas_vec[gj].index;
 
+            size_t orig_idx = gwas_vec[gj].index;
             // QC 未通过的行不做 rsID 匹配，但仍保留为 keep=false（之后输出到 unmatch）
-            if (keep_qc[orig_idx]) {
-                if ((gwas_vec[gj].canon_a1 == db_a1 &&
-                    gwas_vec[gj].canon_a2 == db_a2) ||
-                    (gwas_vec[gj].canon_a1 == db_a2 &&
-                    gwas_vec[gj].canon_a2 == db_a1)){
-                    // 正向匹配 || 反向匹配
-                    keep[orig_idx]     = true;
-                    rsid_vec[orig_idx] = rsid;
-                }
+            if (keep_qc[orig_idx] &&
+                gwas_vec[gj].allele.type == db_allele.type &&
+                gwas_vec[gj].allele.key  == db_allele.key) {
+
+                // 正向匹配 || 反向匹配
+                keep[orig_idx]     = true;
+                rsid_vec[orig_idx] = rsid;
             }
             ++gj;
         }
@@ -354,16 +338,11 @@ void process_rsidImpu(const Args_RsidImpu& P)
         row["A1"]   = f[gA1];
         row["A2"]   = f[gA2];
 
-        if (idx_freq>=0 && idx_freq<(int)f.size())
-            row["freq"]=f[idx_freq];
-        if (idx_beta>=0 && idx_beta<(int)f.size())
-            row["beta"]=f[idx_beta];
-        if (idx_se>=0 && idx_se<(int)f.size())
-            row["se"]=f[idx_se];
-        if (idx_pv>=0 && idx_pv<(int)f.size())
-            row["p"]=f[idx_pv];
-        if (idx_n>=0 && idx_n<(int)f.size())
-            row["N"]=f[idx_n];
+        if (idx_freq>=0 && idx_freq<(int)f.size()) row["freq"]=f[idx_freq];
+        if (idx_beta>=0 && idx_beta<(int)f.size()) row["beta"]=f[idx_beta];
+        if (idx_se>=0 && idx_se<(int)f.size()) row["se"]=f[idx_se];
+        if (idx_pv>=0 && idx_pv<(int)f.size()) row["p"]=f[idx_pv];
+        if (idx_n>=0 && idx_n<(int)f.size()) row["N"]=f[idx_n];
 
         fout.write_line(FE.format_line(spec, row));
     }

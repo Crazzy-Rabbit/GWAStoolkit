@@ -127,3 +127,21 @@ std::string canonical_chr(const std::string& raw){
 
     return x;
 }
+
+int canonical_chr_code(const std::string& raw)
+{
+    std::string c = canonical_chr(raw);
+
+    if (c.empty()) return -1;
+    if (c == "X")  return 23;
+    if (c == "Y")  return 24;
+    if (c == "MT") return 25;
+
+    // 数字染色体
+    char* end = nullptr;
+    long v = std::strtol(c.c_str(), &end, 10);
+    if (*end != '\0') return -1;
+    if (v <= 0 || v > 25) return -1;
+
+    return static_cast<int>(v);
+}

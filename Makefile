@@ -3,7 +3,7 @@
 #########################################
 
 CXX = g++
-CXXFLAGS = -std=c++11 -O3 -fopenmp -Isrc -DUSE_RMATH
+CXXFLAGS = -std=c++17 -O3 -fopenmp -Isrc -DUSE_RMATH
 LDFLAGS  = -lz -lm
 
 SRC = \
@@ -12,9 +12,7 @@ SRC = \
     src/cmds/cmd_convert.cpp \
     src/cmds/cmd_or2beta.cpp \
     src/cmds/cmd_computeNeff.cpp \
-    src/rsidImpu/dbsnp.cpp \
     src/rsidImpu/rsidImpu.cpp \
-    src/rsidImpu/allele.cpp \
     src/convert/convert.cpp \
     src/or2beta/or2beta.cpp \
     src/computeNeff/computeNeff.cpp \

@@ -1,4 +1,3 @@
-#include "rsidImpu/dbsnp.hpp"
 #include "rsidImpu/rsidImpu.hpp"
 
 #include "utils/args.hpp"

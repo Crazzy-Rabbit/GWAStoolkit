@@ -16,8 +16,10 @@ std::string trim(const std::string& s);
 std::string upper(const std::string& s);
 std::string norm_chr(const std::string &chr);
 std::string canonical_chr(const std::string& raw);
+int canonical_chr_code(const std::string& raw);
 static inline bool starts_with(const std::string& s, const std::string& p);
 bool ends_with(const std::string& s, const std::string& suffix);
 int find_col(const std::vector<std::string>& header, const std::string& colname);
 void require(bool cond, const std::string& msg);
+
 #endif
