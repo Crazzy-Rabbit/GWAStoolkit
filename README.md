@@ -152,10 +152,13 @@ cd GWAStoolkit
 ../GWAStoolkit --help
 ```
 
-You will get:
-
+Optionally, you can recompile it to fit your sustem :
 ```
-./GWAStoolkit
+cd GWAStoolkit
+make clean 
+make
+
+../GWAStoolkit --help
 ```
 
 ## 🚀 Quick Start
