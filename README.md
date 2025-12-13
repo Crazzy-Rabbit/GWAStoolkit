@@ -152,7 +152,7 @@ cd GWAStoolkit
 ../GWAStoolkit --help
 ```
 
-Optionally, you can recompile it to fit your sustem :
+Optionally, you can recompile it to fit your system :
 ```
 cd GWAStoolkit
 make clean 
