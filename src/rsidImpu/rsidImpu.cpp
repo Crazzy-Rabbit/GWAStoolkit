@@ -34,6 +34,28 @@ struct GWASRecord {
     AlleleKey allele;
 };
 
+// 用 tab 定位，第 col_idx 列替换为 value
+static inline void replace_nth_column_inplace(
+    std::string &line,
+    int col_idx,
+    const std::string &value
+){
+    size_t start = 0;
+    for (int c = 0; c < col_idx; ++c){
+        start = line.find('\t', start);
+        if (start == std::string::npos) return;
+        ++start;
+    }
+
+    size_t end = line.find('\t', start);
+    if (end == std::string::npos){
+        // 最后一列
+        line.replace(start, line.size() - start, value);
+    } else {
+        line.replace(start, end - start, value);
+    }
+}
+
 void process_rsidImpu(const Args_RsidImpu& P)
 {
     deque<string> gwas_lines;
@@ -308,31 +330,26 @@ void process_rsidImpu(const Args_RsidImpu& P)
             continue;
         }
 
-        auto f = split(gwas_lines[i]);
-
         if (P.format == "gwas") {
             if (has_SNP){
                 // ★ 覆盖原 N
-                if (idx_SNP < (int)f.size()){
-                    f[idx_SNP] = rsid_vec[i];
-                }
-                // 重建一行
-                string out;
-                for (size_t j=0; j<f.size(); j++){
-                    if (j) out +="\t";
-                    out += f[j];
-                }
-                fout.write_line(out);
+                replace_nth_column_inplace(
+                    gwas_lines[i],
+                    idx_SNP,
+                    rsid_vec[i]
+                );
+                fout.write_line(gwas_lines[i]);
             } else {
-                // ★ 原来没有 SNP → 追加
-                string out = gwas_lines[i] + "\t" + rsid_vec[i];
-                fout.write_line(out);
+                // 原本没有 SNP：直接追加
+                fout.write_line(gwas_lines[i] + "\t" + rsid_vec[i]);
             }
-            
+
             continue;
         }
 
         // 构造 row 映射 (col→value)
+        auto f = split(gwas_lines[i]);
+
         unordered_map<string,string> row;
         row["SNP"]  = rsid_vec[i];
         row["A1"]   = f[gA1];
