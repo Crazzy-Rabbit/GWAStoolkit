@@ -56,6 +56,22 @@ static inline void replace_nth_column_inplace(
     }
 }
 
+static inline vector<string> split_tab(const string& s)
+{
+    vector<string> out;
+    size_t start = 0;
+    while (true) {
+        size_t pos = s.find('\t', start);
+        if (pos == string::npos) {
+            out.emplace_back(s.substr(start));
+            break;
+        }
+        out.emplace_back(s.substr(start, pos - start));
+        start = pos + 1;
+    }
+    return out;
+}
+
 void process_rsidImpu(const Args_RsidImpu& P)
 {
     deque<string> gwas_lines;
@@ -69,7 +85,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
     }
 
     line.erase(remove(line.begin(), line.end(), '\r'), line.end());
-    auto header = split(line);
+    auto header = split_tab(line);
 
     // chech exist of SNP col
     bool has_SNP = false;
@@ -135,7 +151,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
     gwas_vec.reserve(n);
 
     for (size_t i = 0; i < n; ++i){
-        auto f = split(gwas_lines[i]);
+        auto f = split_tab(gwas_lines[i]);
 
         int chr = canonical_chr_code(f[gCHR]);
         if (chr < 0) continue;
@@ -185,7 +201,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
             LOG_ERROR("Empty dbSNP file.");
             exit(1);
         }
-        dhdr = split(dline);
+        dhdr = split_tab(dline);
         dCHR = find_col(dhdr, P.d_chr);
         dPOS = find_col(dhdr, P.d_pos);
         dA1  = find_col(dhdr, P.d_A1);
@@ -208,7 +224,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
 
     while (dbr.getline(dline)){
         if (dline.empty()) continue;
-        auto f = split(dline);
+        auto f = split_tab(dline);
 
         int dchr = canonical_chr_code(f[dCHR]);
         if (dchr < 0) continue;
@@ -348,7 +364,7 @@ void process_rsidImpu(const Args_RsidImpu& P)
         }
 
         // 构造 row 映射 (col→value)
-        auto f = split(gwas_lines[i]);
+        auto f = split_tab(gwas_lines[i]);
 
         unordered_map<string,string> row;
         row["SNP"]  = rsid_vec[i];
