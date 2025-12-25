@@ -1,10 +1,13 @@
-#ifndef GWASTOOLKIT_FORMAT_ENGINE_HPP
-#define GWASTOOLKIT_FORMAT_ENGINE_HPP
-
+#pragma once
 #include <string>
-#include <vector>
+#include <string_view>
 #include <unordered_map>
-#include <map>
+#include <vector>
+#include <cstdint>
+
+enum class FieldId : uint8_t {
+    SNP, A1, A2, FREQ, BETA, SE, P, N, UNKNOWN
+};
 
 struct FormatSpec {
     std::string name;
@@ -15,6 +18,8 @@ struct FormatSpec {
     bool required_freq = false;
     bool required_N    = false;
     bool allow_missing = false;
+
+    std::vector<FieldId> field_ids;
 };
 
 class FormatEngine {
@@ -27,15 +32,22 @@ public:
         const FormatSpec& spec,
         const std::unordered_map<std::string,std::string>& row
     ) const;
+    // fast path
+    struct CellView {
+        std::string_view v;
+        bool present = false;
+    };
+    struct RowView {
+        CellView SNP, A1, A2, freq, beta, se, p, N;
+    };
+
+    std::string format_line_fast(const FormatSpec& spec, const RowView& row) const;
 
 private:
-    std::map<std::string,FormatSpec> formats;
+    std::unordered_map<std::string, FormatSpec> formats;
 
-    // 核心：将各种格式的列名映射到内部 key
-    // "b" → "beta"     "BETA" → "beta"
-    // "FREQ" → "freq"  "SE" → "se"
-    std::string normalize_key(const std::string& col) const;
-    static std::string to_lower(std::string s);
+    static FieldId col_to_field_id(std::string_view col);
+    static std::string_view key_of(FieldId id);
+
+    static inline void append_tabbed(std::string& out, bool& first, std::string_view sv);
 };
-
-#endif

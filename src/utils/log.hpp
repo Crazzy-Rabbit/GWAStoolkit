@@ -1,6 +1,6 @@
 //
 //  log.hpp
-//  rsidImpu
+//  GWASToolkit
 //
 //  Created by Lulu Shi on 25/11/2025.
 //  Copyright © 2025 Lulu Shi. All rights reserved.
