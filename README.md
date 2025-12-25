@@ -3,7 +3,7 @@
 **A unified, high-performance C++ toolkit for processing GWAS summary statistics.**
 ![1764851865051](image/README/1764851865051.png)
 GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool.
-It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets (dbSNP > 30GB, millions of SNPs).
+It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets .
 
 ## ⭐ Features
 
@@ -17,6 +17,7 @@ It provides consistent interfaces, shared parameters across subcommands, and fas
 - Optional output formats (COJO, POPCORN, MR-MEGA, etc.)
 - Automatic QC: MAF, beta, se, p, freq, N
 - Remove duplicate SNPs by smallest P-value
+- Fast performance: **dbSNP > 30GB, 6 millions of SNPs within 10 min**
 
 #### ❗Note
 
@@ -174,13 +175,12 @@ GWAStoolkit --help
 Basic:
 
 ```
-GWAStoolkit=/public/home/shilulu/script/GWAStoolkit/GWAStoolkit
 gwas=/public/home/shilulu/yqyan/0_txt/All_2019_CHEESE_BBJ_autosome_Pcorrected.txt
 dbSNP=/public/home/shilulu/Wulab/dbSNP/GRCH37.dbSNP157.txt
 out=/public/home/shilulu/yqyan/0_txt/rsID/CHEESE_BBJ_annotated.txt.gz
 logfile=/public/home/shilulu/yqyan/0_txt/rsID/CHEESE_BBJ_annotate.log
 
-cmd="$GWAStoolkit rsidImpu \
+cmd="./GWAStoolkit rsidImpu \
 --gwas-summary $gwas  \
 --dbsnp $dbSNP \
 --dbchr CHROM \
@@ -198,9 +198,9 @@ cmd="$GWAStoolkit rsidImpu \
 --pval P \
 --out $out \
 --log $logfile \
---threads 10"
+--threads 1"
 
-qsubshcom "$cmd" 10 100G rsid_annot 02:00:00 ""
+qsubshcom "$cmd" 1 100G rsid_annot 02:00:00 ""
 ```
 
 With specific output format:

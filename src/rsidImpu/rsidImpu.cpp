@@ -66,19 +66,25 @@ static inline vector<string> split_tab(const string& s)
 //  预计算 SNP 列 span：start,len（避免每条输出重复 find '\t'）
 static inline bool get_col_span(std::string_view line, int col_idx, uint32_t &st, uint32_t &len){
     if (col_idx < 0) return false;
+
     size_t start = 0;
     for (int c = 0; c < col_idx; ++c){
         size_t p = line.find('\t', start);
-        if (p == std::string_view::npos)return false;
+        if (p == std::string_view::npos) return false;
         start = p + 1;
-    } 
+    }
+
     size_t end = line.find('\t', start);
     if (end == std::string_view::npos) end = line.size();
-    if (start > line.size() || end > start) return false;
+
+    // ✅ 正确判断：end 不能小于 start
+    if (start > line.size() || end < start) return false;
+
     st  = static_cast<uint32_t>(start);
     len = static_cast<uint32_t>(end - start);
     return true;
 }
+
 
 static inline char low(char c){
     return (char)std::tolower((unsigned char)c);
@@ -188,6 +194,26 @@ static inline int canonical_chr_code_sv(std::string_view sv) {
     if (!parse_int_strict(sv, v)) return -1;
     if (v <= 0 || v > 25) return -1;
     return v;
+}
+
+static inline void replace_nth_column_inplace(
+    std::string &line,
+    int col_idx,
+    const std::string &value
+){
+    size_t start = 0;
+    for (int c = 0; c < col_idx; ++c){
+        start = line.find('\t', start);
+        if (start == std::string::npos) return;
+        ++start;
+    }
+
+    size_t end = line.find('\t', start);
+    if (end == std::string::npos){
+        line.replace(start, line.size() - start, value);
+    } else {
+        line.replace(start, end - start, value);
+    }
 }
 
 
@@ -623,8 +649,14 @@ void process_rsidImpu(const Args_RsidImpu& P)
                     if (st != std::numeric_limits<uint32_t>::max()) {
                         gwas_lines[i].replace((size_t)st, (size_t)len, rsid_vec[i]);
                     } else {
-                        // 极端容错（理论上不会）
-                        // fallback: 退回到旧逻辑（不再贴 replace_nth_column_inplace 实现）
+                        // ✅ 兜底：再算一次 span（防止预计算失败）
+                        uint32_t st2=0, len2=0;
+                        if (get_col_span(std::string_view(gwas_lines[i]), idx_SNP, st2, len2)) {
+                            gwas_lines[i].replace((size_t)st2, (size_t)len2, rsid_vec[i]);
+                        } else {
+                            // ✅ 最终兜底：慢一点但不会错
+                            replace_nth_column_inplace(gwas_lines[i], idx_SNP, rsid_vec[i]);
+                        }
                     }
                 }
                 fout.write_line(gwas_lines[i]);
