@@ -248,6 +248,7 @@ Example (COJO output usually expects N; provide `--n` if required by your downst
 
 ### 4️⃣ computeNeff — Compute effective sample size (binary traits)
 For case/control GWAS:
+
 $$
 N_{eff} = \frac{4 \cdot case \cdot control}{case + control}
 $$
