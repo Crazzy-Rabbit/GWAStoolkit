@@ -3,6 +3,7 @@
 **An unified, high-performance C++ toolkit for processing GWAS summary statistics.**
 ![1764851865051](image/README/1764851865051.png)
 
+![GitHub tag](https://img.shields.io/github/v/tag/Crazzy-Rabbit/GWAStoolkit)
 ![GitHub release](https://img.shields.io/github/v/release/Crazzy-Rabbit/GWAStoolkit)
 ![License](https://img.shields.io/github/license/Crazzy-Rabbit/GWAStoolkit)
 ![badge_commit_m](https://img.shields.io/github/commit-activity/m/Crazzy-Rabbit/GWAStoolkit)
