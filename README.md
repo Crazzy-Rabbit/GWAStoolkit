@@ -2,10 +2,42 @@
 
 **A unified, high-performance C++ toolkit for processing GWAS summary statistics.**
 ![1764851865051](image/README/1764851865051.png)
+
+![GitHub release](https://img.shields.io/github/v/release/Crazzy-Rabbit/GWAStoolkit)
+![License](https://img.shields.io/github/license/Crazzy-Rabbit/GWAStoolkit)
+![badge_commit_m](https://img.shields.io/github/commit-activity/m/Crazzy-Rabbit/GWAStoolkit)
+![Stars](https://img.shields.io/github/stars/Crazzy-Rabbit/GWAStoolkit?style=social)
+
+
 GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool.
 It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets .
 
-## ⭐ Features
+## ⚙️ Installation
+
+### Dependencies
+
+- g++ (support C++11)
+- zlib
+
+### Build
+
+```
+git clone https://github.com/Crazzy-Rabbit/GWAStoolkit.git
+cd GWAStoolkit
+
+../GWAStoolkit --help
+```
+
+Optionally, you can recompile it to fit your system :
+```
+cd GWAStoolkit
+make clean 
+make
+
+../GWAStoolkit --help
+```
+
+## ⭐ Functions
 
 ### 1️⃣ rsidImpu — Fast rsID annotation using dbSNP
 
@@ -136,31 +168,6 @@ where $p$ is the $MAF$, and then, we can calculate $beta$ by:
 $$
 beta= z * se
 $$
-
-## ⚙️ Installation
-
-### Dependencies
-
-- g++ (support C++11)
-- zlib
-
-### Build
-
-```
-git clone https://github.com/Crazzy-Rabbit/GWAStoolkit.git
-cd GWAStoolkit
-
-../GWAStoolkit --help
-```
-
-Optionally, you can recompile it to fit your system :
-```
-cd GWAStoolkit
-make clean 
-make
-
-../GWAStoolkit --help
-```
 
 ## 🚀 Quick Start
 
