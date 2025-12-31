@@ -1,7 +1,7 @@
 # 🧬 GWAStoolkit
 
 **An unified, high-performance C++ toolkit for processing GWAS summary statistics.**
-![GWAStoolkit](image/README/gwastoolkit.png)
+![GWASToolkit](image/README/1767148646780.png)
 
 ![GitHub tag](https://img.shields.io/github/v/tag/Crazzy-Rabbit/GWAStoolkit)
 ![GitHub release](https://img.shields.io/github/v/release/Crazzy-Rabbit/GWAStoolkit)
@@ -9,8 +9,7 @@
 ![badge_commit_m](https://img.shields.io/github/commit-activity/m/Crazzy-Rabbit/GWAStoolkit)
 ![Stars](https://img.shields.io/github/stars/Crazzy-Rabbit/GWAStoolkit?style=social)
 
-
-GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool.\
+GWAStoolkit integrates multiple commonly needed GWAS operations into a single, efficient command-line tool.
 It provides consistent interfaces, shared parameters across subcommands, and fast performance for very large datasets.
 
 ---
@@ -62,6 +61,7 @@ cd GWAStoolkit
 ```
 
 Optionally, you can recompile it to fit your system :
+
 ```
 cd GWAStoolkit
 make clean 
@@ -73,6 +73,7 @@ make
 ## 🚀 Quick Start
 
 List all commands:
+
 ```
 ./GWAStoolkit --help
 ```
@@ -106,6 +107,7 @@ List all commands:
 | `MT`   | `NC_012920.1`  | `MT`         |
 
 ##### dbSNP VCF pre-processing (example: GRCh37 + dbSNP 157)
+
 This section shows one common way to convert NCBI dbSNP VCF into a fast text file with columns:
 `CHROM POS ID REF ALT`.
 
@@ -123,12 +125,14 @@ bcftools norm -m -any --thread 10 -Oz -o GRCH37.dbsnp157.vcf.gz GCF_000001405.25
 ```
 
 2) Rename chromosome names (optional, recommended)
+
 ```
 bcftools annotate --rename-chrs chrmap.txt GRCH37.dbsnp157.vcf.gz --thread 10 -Oz -o GRCH37.dbsnp157.chr.vcf.gz
 bcftools index GRCH37.dbsnp157.chr.vcf.gz
 ```
 
 `chrmap.txt` example:
+
 ```
 NC_000001.10    1
 NC_000002.11    2
@@ -155,7 +159,9 @@ NC_000022.10    22
 NC_000023.10    X
 NC_000024.9     Y
 ```
+
 3) Extract autosomes + X (example)
+
 ```
 bcftools view -r 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,X \
 GRCH37.dbsnp157.chr.vcf.gz --thread 10 -Oz -o GRCH37.dbsnp157.1toXchr.vcf.gz
@@ -173,6 +179,7 @@ GRCH37.dbsnp157.chr.vcf.gz --thread 10 -Oz -o GRCH37.dbsnp157.1toXchr.vcf.gz
 The output `GRCH37.dbSNP157.txt` can be used in `reidImpu`
 
 #### rsidImpu example
+
 ```
 gwas=/public/home/shilulu/yqyan/0_txt/All_2019_CHEESE_BBJ_autosome_Pcorrected.txt
 dbSNP=/public/home/shilulu/Wulab/dbSNP/GRCH37.dbSNP157.txt
@@ -199,7 +206,9 @@ logfile=/public/home/shilulu/yqyan/0_txt/rsID/CHEESE_BBJ_annotate.log
   --log $logfile \
   --threads 1
 ```
+
 Output as COJO format (example):
+
 ```
 ./GWAStoolkit rsidImpu ... --format cojo
 ```
@@ -212,7 +221,8 @@ Convert any GWAS summary file to formats required by:
 - **GCTA-COJO**
 - **POPCORN**
 - **MR-MEGA**
-Example:
+  Example:
+
 ```
 ./GWAStoolkit convert \
   --gwas-summary gwas.txt \
@@ -226,6 +236,7 @@ Example:
   --pval p \
   --n N
 ```
+
 ### 3️⃣ or2beta — Convert OR → beta + SE
 
 - Converts OR to log-odds beta
@@ -233,6 +244,7 @@ Example:
 - Full QC support
 
 Example (COJO output usually expects N; provide `--n` if required by your downstream format):
+
 ```
 ./GWAStoolkit or2beta \
   --gwas-summary gwas.txt \
@@ -247,6 +259,7 @@ Example (COJO output usually expects N; provide `--n` if required by your downst
 ```
 
 ### 4️⃣ computeNeff — Compute effective sample size (binary traits)
+
 For case/control GWAS:
 
 $$
@@ -257,12 +270,9 @@ After computing $N_{eff}$, SNPs can be standardized using:
 
 - $z = \frac{beta} {se}$
 
-
 $$
 se = \frac{1}{\sqrt{2p(1-p)\left(N_{\mathrm{eff}} + z^2\right)}}
 $$
-
-
 
 $$
 beta= z * se
@@ -271,9 +281,11 @@ $$
 where $p$ is the $MAF$.
 
 **Modes**
+
 - **Mode 1** — Fixed global case/control counts
 - **Mode 2** — Per-SNP `case/control` columns
-Mode 1 example:
+  Mode 1 example:
+
 ```
 ./GWAStoolkit computeNeff \
   --gwas-summary gwas.txt \
@@ -288,7 +300,9 @@ Mode 1 example:
   --format cojo \
   --out gwas.neff.txt
 ```
+
 Mode 2 example:
+
 ```
 ./GWAStoolkit computeNeff \
   --gwas-summary gwas.txt \
@@ -303,11 +317,13 @@ Mode 2 example:
   --format cojo \
   --out gwas.neff.txt
 ```
+
 ## 🧩 Recommended Workflows
 
 Below are practical end-to-end recipes commonly used in GWAS pipelines.
 
 **Case/control GWAS with OR (produce COJO-ready output)**
+
 ```
 # 1) OR -> beta/SE
 ./GWAStoolkit or2beta \
@@ -370,16 +386,20 @@ rs1000    A   G   0.37   0.145   0.035   1e-5    50000
 rs2000    T   C   0.42  -0.080   0.025   2e-3    50000
 ...
 ```
+
 ## 🧯 Troubleshooting
 
 **1)** “No rsID matched / very low match rate”
+
 - Check genome build consistency (GRCh37 vs GRCh38)
 - Ensure chr naming is compatible (see mapping table)
 - Check allele columns (A1/A2) and whether GWAS is effect/other allele
 
 **2)** “COJO output missing N / downstream tool complains”
+
 - COJO typically expects an `N` column.
 - Provide `--n <column>` in `convert/or2beta`, or use `computeNeff` to generate effective `N`.
 
 **3)** Multi-allelic sites in dbSNP
+
 - Use `bcftools norm -m -any` to split into biallelic before extracting to text.
